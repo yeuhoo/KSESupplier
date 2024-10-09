@@ -1,0 +1,81 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type Product {
+  id: String!
+  title: String!
+  description: String
+}
+
+type User {
+  id: String!
+  firstName: String!
+  lastName: String
+  email: String
+}
+
+type ShippingAddress {
+  address1: String!
+  city: String!
+  province: String!
+  country: String!
+  zip: String!
+}
+
+type Metafield {
+  id: String!
+  namespace: String!
+  key: String!
+  value: String!
+}
+
+type LineItem {
+  title: String!
+  quantity: Float!
+}
+
+type Order {
+  id: String!
+}
+
+type DraftOrder {
+  id: String!
+  invoiceUrl: String!
+  lineItems: [LineItem!]!
+  metafields: [Metafield]
+  shippingAddress: ShippingAddress
+  order: Order
+}
+
+type Query {
+  products: [Product!]!
+  users: [User!]!
+}
+
+type Mutation {
+  createDraftOrder(customerId: String!, lineItems: [LineItemInput!]!, shippingAddress: ShippingAddressInput!, metafields: [MetafieldInput!]): DraftOrder!
+  updateDraftOrder(id: String!, customerId: String!, lineItems: [LineItemInput!]!, metafields: [MetafieldInput!], shippingAddress: ShippingAddressInput): DraftOrder!
+  deleteDraftOrder(id: String!): String!
+  completeDraftOrder(id: String!): DraftOrder!
+}
+
+input LineItemInput {
+  variantId: String!
+  quantity: Float!
+}
+
+input ShippingAddressInput {
+  address1: String!
+  city: String!
+  province: String!
+  country: String!
+  zip: String!
+}
+
+input MetafieldInput {
+  namespace: String!
+  key: String!
+  value: String!
+  type: String!
+}
