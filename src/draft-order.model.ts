@@ -23,6 +23,25 @@ export class LineItem {
 
   @Field()
   quantity: number;
+
+  @Field({ nullable: true })
+  price?: number;
+
+  @Field({ nullable: true })
+  discounted_price?: number;
+
+  @Field({ nullable: true })
+  final_price?: number;
+}
+
+
+@ObjectType()
+export class CartLevelDiscount {
+  @Field()
+  code: string;
+
+  @Field()
+  value: number;
 }
 
 @ObjectType()
@@ -31,25 +50,41 @@ export class Order {
   id: string;
 }
 
-
 @ObjectType()
 export class DraftOrder {
   @Field()
   id: string;
 
-  @Field()
-  invoiceUrl: string;
+  @Field({ nullable: true })
+  customerId?: string;
 
-  @Field(() => [LineItem])  
-  lineItems: LineItem[];
+  @Field({ nullable: true })
+  note?: string;
 
-  @Field(() => [Metafield], { nullable: 'itemsAndList' })  
+  @Field({ nullable: true })
+  original_total_price?: number;
+
+  @Field({ nullable: true })
+  total_price?: number;
+
+  @Field({ nullable: true })
+  total_discount?: number;
+
+  @Field({ nullable: true })
+  requires_shipping?: boolean;
+
+  @Field(() => [LineItem], { nullable: true })
+  lineItems?: LineItem[];
+
+  @Field({ nullable: true })
+  createdAt?: string;
+
+  @Field(() => [Metafield], { nullable: true })
   metafields?: Metafield[];
 
-  @Field(() => ShippingAddress, { nullable: true })  
-  shippingAddress: ShippingAddress;
+  @Field(() => [CartLevelDiscount], { nullable: true })
+  cart_level_discount_applications?: CartLevelDiscount[];
 
-  @Field(() => Order, { nullable: true })  
-  order?: Order;
-  
+  @Field(() => ShippingAddress, { nullable: true })
+  shippingAddress?: ShippingAddress;
 }

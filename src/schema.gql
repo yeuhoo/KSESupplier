@@ -8,11 +8,21 @@ type Product {
   description: String
 }
 
+type Address {
+  address1: String
+  address2: String
+  city: String
+  province: String
+  country: String
+  zip: String
+}
+
 type User {
   id: String!
   firstName: String!
   lastName: String
   email: String
+  addresses: [Address!]
 }
 
 type ShippingAddress {
@@ -33,36 +43,47 @@ type Metafield {
 type LineItem {
   title: String!
   quantity: Float!
+  price: Float
+  discounted_price: Float
+  final_price: Float
 }
 
-type Order {
-  id: String!
+type CartLevelDiscount {
+  code: String!
+  value: Float!
 }
 
 type DraftOrder {
   id: String!
-  invoiceUrl: String!
-  lineItems: [LineItem!]!
-  metafields: [Metafield]
+  customerId: String
+  note: String
+  original_total_price: Float
+  total_price: Float
+  total_discount: Float
+  requires_shipping: Boolean
+  lineItems: [LineItem!]
+  createdAt: String
+  metafields: [Metafield!]
+  cart_level_discount_applications: [CartLevelDiscount!]
   shippingAddress: ShippingAddress
-  order: Order
 }
 
 type Query {
   products: [Product!]!
   users: [User!]!
+  user(id: String!): User
+  isDraftOrderCompleted(id: String!): Boolean!
+  draftOrders: [DraftOrder!]!
+  checkForShippingFee(draftOrderId: String!): String
 }
 
 type Mutation {
-  createDraftOrder(customerId: String!, lineItems: [LineItemInput!]!, shippingAddress: ShippingAddressInput!, metafields: [MetafieldInput!]): DraftOrder!
+  requestShippingFee(userId: String!, draftOrderId: String!, shippingAddress: ShippingAddressInput!): Boolean!
+  calculateDraftOrderById(draftOrderId: String!): DraftOrder!
+  createDraftOrder(customerId: String!, lineItems: [LineItemInput!]!, shippingAddress: ShippingAddressInput!, metafields: [MetafieldInput!], note: String): DraftOrder!
   updateDraftOrder(id: String!, customerId: String!, lineItems: [LineItemInput!]!, metafields: [MetafieldInput!], shippingAddress: ShippingAddressInput): DraftOrder!
   deleteDraftOrder(id: String!): String!
-  completeDraftOrder(id: String!): DraftOrder!
-}
-
-input LineItemInput {
-  variantId: String!
-  quantity: Float!
+  completeDraftOrder(id: String!, shippingAddress: ShippingAddressInput!): Boolean!
 }
 
 input ShippingAddressInput {
@@ -71,6 +92,19 @@ input ShippingAddressInput {
   province: String!
   country: String!
   zip: String!
+}
+
+input LineItemInput {
+  variantId: String!
+  quantity: Float!
+  originalUnitPrice: Float
+  title: String
+  properties: [PropertyInput!]
+}
+
+input PropertyInput {
+  key: String!
+  value: String!
 }
 
 input MetafieldInput {
