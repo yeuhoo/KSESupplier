@@ -69,13 +69,21 @@ type DraftOrder {
   shippingAddress: ShippingAddress
 }
 
+type DraftOrderTag {
+  id: String!
+  draftOrderId: String!
+  tag: String!
+}
+
 type Query {
   products: [Product!]!
   users: [User!]!
   user(id: String!): User
+  getDraftOrder(id: String!): DraftOrder
   isDraftOrderCompleted(id: String!): Boolean!
   draftOrders: [DraftOrder!]!
   checkForShippingFee(draftOrderId: String!): String
+  getDraftOrderTags(draftOrderId: String!): [DraftOrderTag!]!
 }
 
 type Mutation {
@@ -85,6 +93,8 @@ type Mutation {
   updateDraftOrder(id: String!, customerId: String!, lineItems: [LineItemInput!]!, shippingAddress: ShippingAddressInput, metafields: [MetafieldInput!]): DraftOrder!
   deleteDraftOrder(id: String!): String!
   completeDraftOrder(id: String!, shippingAddress: ShippingAddressInput!): Boolean!
+  createDraftOrderTag(draftOrderId: String!, tag: String!): Boolean!
+  updateDraftOrderTag(draftOrderId: String!, tag: String!): DraftOrderTag!
 }
 
 input ShippingAddressInput {

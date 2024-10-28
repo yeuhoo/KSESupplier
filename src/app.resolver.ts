@@ -7,6 +7,7 @@ import { MetafieldInput } from './dto/metafield.input';
 import { ShippingAddressInput } from './dto/shipping-address.input';
 import { DraftOrderInput, LineItemInput } from './dto/draft-order.input';
 import { PropertyInput } from './dto/property.input';
+import { DraftOrderTag } from './dto/draft-order-tag.model';
 
 @Resolver()
 export class AppResolver {
@@ -27,6 +28,12 @@ async user(@Args('id') id: string) {
     const user = await this.appService.getUserById(id);
     return user;
 }
+
+@Query(() => DraftOrder, { nullable: true })
+async getDraftOrder(@Args('id') id: string): Promise<DraftOrder> {
+    return this.appService.getDraftOrderById(id);
+}
+
 
 @Mutation(() => Boolean)
 async requestShippingFee(
@@ -215,7 +222,34 @@ async createDraftOrder(
       throw new Error('Failed to complete draft order.');
     }
   }
-  
-  
+
+
+  //DRAFT ORDER TAGS
+    @Mutation(() => Boolean)
+    async createDraftOrderTag(
+        @Args('draftOrderId') draftOrderId: string,
+        @Args('tag') tag: string
+    ): Promise<boolean> {
+        try {
+            await this.appService.createDraftOrderTag(draftOrderId, tag);
+            return true; // Return true if tag creation is successful
+        } catch (error) {
+            console.error('Error creating draft order tag:', error.message);
+            throw new Error('Failed to create draft order tag.');
+        }
+    }
+
+  @Query(() => [DraftOrderTag])
+  async getDraftOrderTags(@Args('draftOrderId') draftOrderId: string): Promise<DraftOrderTag[]> {
+      return this.appService.getDraftOrderTags(draftOrderId);
+  }
+
+  @Mutation(() => DraftOrderTag)
+  async updateDraftOrderTag(
+      @Args('draftOrderId') draftOrderId: string,
+      @Args('tag') tag: string
+  ): Promise<DraftOrderTag> {
+      return this.appService.updateDraftOrderTag(draftOrderId, tag);
+  }
   
 }

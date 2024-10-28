@@ -5,16 +5,144 @@ import { ConfigService } from '@nestjs/config';
 import { ShippingAddressInput } from './dto/shipping-address.input';
 import { MetafieldInput } from './dto/metafield.input';
 import * as nodemailer from 'nodemailer';
+import { DraftOrderTag } from './dto/draft-order-tag.model';
+import { DraftOrder } from './draft-order.model';
 
 @Injectable()
 export class AppService {
   private readonly shopifyApiUrl: string;
   private readonly shopifyAccessToken: string;
+  private readonly tags: DraftOrderTag[] = [];
 
   constructor(private readonly configService: ConfigService) {
     this.shopifyApiUrl = this.configService.get<string>('SHOPIFY_API_URL');
     this.shopifyAccessToken = this.configService.get<string>('SHOPIFY_ACCESS_TOKEN');
   }
+
+  async createDraftOrderTag(draftOrderId: string, tag: string): Promise<boolean> {
+    try {
+        const restApiUrl = `${process.env.SHOPIFY_REST_API_URL}/draft_orders/${draftOrderId}.json`;
+
+        const fetchResponse = await axios({
+            url: restApiUrl,
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+            },
+        });
+
+        const currentTags = fetchResponse.data.draft_order.tags ? fetchResponse.data.draft_order.tags.split(', ') : [];
+
+        if (!currentTags.includes(tag)) {
+            currentTags.push(tag);
+        }
+
+        const updateResponse = await axios({
+            url: restApiUrl,
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+            },
+            data: {
+                draft_order: {
+                    tags: currentTags.join(', '),
+                },
+            },
+        });
+
+        if (updateResponse.data.errors) {
+            console.error('Shopify API errors:', updateResponse.data.errors);
+            throw new Error('Shopify API returned an error');
+        }
+
+        console.log('Draft order tags updated successfully:', updateResponse.data.draft_order.tags);
+        return true;
+
+    } catch (error) {
+        console.error('Error updating draft order tags in Shopify:', error.response?.data || error.message);
+        throw new Error('Failed to update draft order tags in Shopify.');
+    }
+  }
+
+  async getDraftOrderTags(draftOrderId: string): Promise<DraftOrderTag[]> {
+    try {
+        const response = await axios({
+            url: this.shopifyApiUrl,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': this.shopifyAccessToken,
+            },
+            data: {
+                query: `
+                    query getDraftOrder($id: ID!) {
+                        draftOrder(id: $id) {
+                            id
+                            tags
+                        }
+                    }
+                `,
+                variables: { id: `gid://shopify/DraftOrder/${draftOrderId}` },
+            },
+        });
+
+        const tags = response.data.data.draftOrder?.tags || [];
+        return tags.map((tag: string) => ({ id: draftOrderId, draftOrderId, tag }));
+    } catch (error) {
+        console.error('Error retrieving draft order tags from Shopify:', error.message);
+        throw new Error('Failed to retrieve draft order tags from Shopify.');
+    }
+  }
+
+  async updateDraftOrderTag(draftOrderId: string, newTag: string): Promise<DraftOrderTag> {
+    try {
+        // Get current tags
+        const currentTags = await this.getDraftOrderTags(draftOrderId);
+
+        // Update tag list with new tag
+        const updatedTags = currentTags.map(tag => (tag.tag === newTag ? tag : { ...tag, tag: newTag }));
+        
+        const response = await axios({
+            url: this.shopifyApiUrl,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': this.shopifyAccessToken,
+            },
+            data: {
+                query: `
+                    mutation updateDraftOrder($id: ID!, $tags: [String!]) {
+                        draftOrderUpdate(id: $id, input: { tags: $tags }) {
+                            draftOrder {
+                                id
+                                tags
+                            }
+                            userErrors {
+                                field
+                                message
+                            }
+                        }
+                    }
+                `,
+                variables: {
+                    id: `gid://shopify/DraftOrder/${draftOrderId}`,
+                    tags: updatedTags.map(tag => tag.tag),
+                },
+            },
+        });
+
+        const draftOrder = response.data.data?.draftOrderUpdate?.draftOrder;
+        if (!draftOrder) throw new Error('Failed to update tags in Shopify.');
+
+        return { id: draftOrderId, draftOrderId, tag: newTag };
+    } catch (error) {
+        console.error('Error updating draft order tag in Shopify:', error.message);
+        throw new Error('Failed to update draft order tag in Shopify.');
+    }
+  }
+
 
   async getUsers() {
     const response = await axios({
@@ -95,48 +223,45 @@ export class AppService {
     });
 
     return response.data.data.customer;
-}
+  }
   
-async getProducts() {
-  const response = await axios({
-    url: this.shopifyApiUrl,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': this.shopifyAccessToken,
-    },
-    data: {
-      query: `
-        {
-          products(first: 10) {
-            edges {
-              node {
-                id
-                title
-                description
-                priceRange {
-                  minVariantPrice {
-                    amount
-                    currencyCode
-                  }
-                  maxVariantPrice {
-                    amount
-                    currencyCode
+  async getProducts() {
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: {
+        query: `
+          {
+            products(first: 10) {
+              edges {
+                node {
+                  id
+                  title
+                  description
+                  priceRange {
+                    minVariantPrice {
+                      amount
+                      currencyCode
+                    }
+                    maxVariantPrice {
+                      amount
+                      currencyCode
+                    }
                   }
                 }
               }
             }
           }
-        }
-      `,
-    },
-  });
-  
-  return response.data.data.products.edges.map(edge => edge.node);
-}
-
-
-
+        `,
+      },
+    });
+    
+    return response.data.data.products.edges.map(edge => edge.node);
+  }
 
   async getProductDetails(productId: string) {
     const response = await axios({
@@ -383,6 +508,48 @@ async createDraftOrder(
     }
   }
 
+  async getDraftOrderById(id: string): Promise<DraftOrder> {
+    try {
+        const response = await axios({
+            url: this.shopifyApiUrl,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': this.shopifyAccessToken,
+            },
+            data: {
+                query: `
+                    query($id: ID!) {
+                        draftOrder(id: $id) {
+                            id
+                            shippingAddress {
+                                address1
+                                city
+                                province
+                                country
+                                zip
+                            }
+                        }
+                    }
+                `,
+                variables: {
+                    id: `gid://shopify/DraftOrder/${id}`,
+                },
+            },
+        });
+
+        const draftOrder = response.data.data.draftOrder;
+        if (!draftOrder) {
+            throw new Error(`Draft order with ID ${id} not found.`);
+        }
+
+        return draftOrder;
+    } catch (error) {
+        console.error('Error fetching draft order:', error.message);
+        throw new Error('Failed to fetch draft order.');
+    }
+}
+
   async calculateDraftOrder(draftOrderInput) {
     try {
         const response = await axios({
@@ -455,156 +622,154 @@ async createDraftOrder(
     }
 }
 
-async calculateDraftOrderById(draftOrderId: string) {
-  try {
-    const response = await axios({
-      url: this.shopifyApiUrl,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': this.shopifyAccessToken,
-      },
-      data: {
-        query: `
-          mutation {
-            draftOrderCalculate(id: "gid://shopify/DraftOrder/${draftOrderId}") {
-              calculatedDraftOrder {
-                lineItems {
-                  title
-                  quantity
-                  discountedTotalSet {
+  async calculateDraftOrderById(draftOrderId: string) {
+    try {
+      const response = await axios({
+        url: this.shopifyApiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+        data: {
+          query: `
+            mutation {
+              draftOrderCalculate(id: "gid://shopify/DraftOrder/${draftOrderId}") {
+                calculatedDraftOrder {
+                  lineItems {
+                    title
+                    quantity
+                    discountedTotalSet {
+                      shopMoney {
+                        amount
+                        currencyCode
+                      }
+                    }
+                  }
+                  totalPriceSet {
+                    shopMoney {
+                      amount
+                      currencyCode
+                    }
+                  }
+                  totalTaxSet {
                     shopMoney {
                       amount
                       currencyCode
                     }
                   }
                 }
-                totalPriceSet {
-                  shopMoney {
-                    amount
-                    currencyCode
-                  }
+                userErrors {
+                  field
+                  message
                 }
-                totalTaxSet {
-                  shopMoney {
-                    amount
-                    currencyCode
-                  }
-                }
-              }
-              userErrors {
-                field
-                message
               }
             }
-          }
-        `,
-      },
-    });
-
-    const data = response.data.data.draftOrderCalculate.calculatedDraftOrder;
-
-    if (response.data.data.draftOrderCalculate.userErrors.length > 0) {
-      console.error('User Errors:', response.data.data.draftOrderCalculate.userErrors);
-      throw new Error(response.data.data.draftOrderCalculate.userErrors[0].message);
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Error in calculating draft order:', error.message);
-    if (error.response) {
-      console.error('Response Data:', error.response.data);
-    }
-    throw new Error('Failed to calculate draft order.');
-  }
-}
-
-async checkForShippingFee(draftOrderId: string) {
-  try {
-      const response = await axios({
-          url: this.shopifyApiUrl,
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              'X-Shopify-Access-Token': this.shopifyAccessToken,
-          },
-          data: {
-              query: `
-                  query {
-                      draftOrder(id: "gid://shopify/DraftOrder/${draftOrderId}") {
-                          id
-                          shippingLine {
-                              title
-                              price
-                          }
-                      }
-                  }
-              `,
-          },
+          `,
+        },
       });
 
-      const draftOrder = response.data.data.draftOrder;
+      const data = response.data.data.draftOrderCalculate.calculatedDraftOrder;
 
-      if (draftOrder && draftOrder.shippingLine && draftOrder.shippingLine.price) {
-          return parseFloat(draftOrder.shippingLine.price);
-      } else {
-          return 0; // No shipping fee
+      if (response.data.data.draftOrderCalculate.userErrors.length > 0) {
+        console.error('User Errors:', response.data.data.draftOrderCalculate.userErrors);
+        throw new Error(response.data.data.draftOrderCalculate.userErrors[0].message);
       }
-  } catch (error) {
+
+      return data;
+    } catch (error) {
+      console.error('Error in calculating draft order:', error.message);
       if (error.response) {
-          console.error('Error Status:', error.response.status);
-          console.error('Error Data:', error.response.data);
+        console.error('Response Data:', error.response.data);
       }
-      console.error('Error checking for shipping fee:', error.message);
-      throw new Error('Failed to check for shipping fee.');
+      throw new Error('Failed to calculate draft order.');
+    }
   }
-}
 
-async updateDraftOrderAddress(draftOrderId: string, shippingAddress: ShippingAddressInput) {
-  const mutation = `
-    mutation {
-      draftOrderUpdate(id: "gid://shopify/DraftOrder/${draftOrderId}", input: {
-        shippingAddress: {
-          address1: "${shippingAddress.address1}",
-          city: "${shippingAddress.city}",
-          province: "${shippingAddress.province}",
-          country: "${shippingAddress.country}",
-          zip: "${shippingAddress.zip}"
+  async checkForShippingFee(draftOrderId: string) {
+    try {
+        const response = await axios({
+            url: this.shopifyApiUrl,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': this.shopifyAccessToken,
+            },
+            data: {
+                query: `
+                    query {
+                        draftOrder(id: "gid://shopify/DraftOrder/${draftOrderId}") {
+                            id
+                            shippingLine {
+                                title
+                                price
+                            }
+                        }
+                    }
+                `,
+            },
+        });
+
+        const draftOrder = response.data.data.draftOrder;
+
+        if (draftOrder && draftOrder.shippingLine && draftOrder.shippingLine.price) {
+            return parseFloat(draftOrder.shippingLine.price);
+        } else {
+            return 0; // No shipping fee
         }
-      }) {
-        draftOrder {
-          id
+    } catch (error) {
+        if (error.response) {
+            console.error('Error Status:', error.response.status);
+            console.error('Error Data:', error.response.data);
         }
-        userErrors {
-          field
-          message
+        console.error('Error checking for shipping fee:', error.message);
+        throw new Error('Failed to check for shipping fee.');
+    }
+  }
+
+  async updateDraftOrderAddress(draftOrderId: string, shippingAddress: ShippingAddressInput) {
+    const mutation = `
+      mutation {
+        draftOrderUpdate(id: "gid://shopify/DraftOrder/${draftOrderId}", input: {
+          shippingAddress: {
+            address1: "${shippingAddress.address1}",
+            city: "${shippingAddress.city}",
+            province: "${shippingAddress.province}",
+            country: "${shippingAddress.country}",
+            zip: "${shippingAddress.zip}"
+          }
+        }) {
+          draftOrder {
+            id
+          }
+          userErrors {
+            field
+            message
+          }
         }
       }
-    }
-  `;
+    `;
 
-  try {
-    const response = await axios.post(this.shopifyApiUrl, {
-      query: mutation,
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': this.shopifyAccessToken,
-      },
-    });
+    try {
+      const response = await axios.post(this.shopifyApiUrl, {
+        query: mutation,
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+      });
 
-    const data = response.data;
-    if (data.errors || data.data.draftOrderUpdate.userErrors.length > 0) {
-      console.error('Error updating draft order address:', data.errors || data.data.draftOrderUpdate.userErrors);
-      throw new Error('Failed to update draft order address.');
+      const data = response.data;
+      if (data.errors || data.data.draftOrderUpdate.userErrors.length > 0) {
+        console.error('Error updating draft order address:', data.errors || data.data.draftOrderUpdate.userErrors);
+        throw new Error('Failed to update draft order address.');
+      }
+    } catch (error) {
+      console.error('Error in updateDraftOrderAddress:', error.message);
+      throw error;
     }
-  } catch (error) {
-    console.error('Error in updateDraftOrderAddress:', error.message);
-    throw error;
   }
-}
-
-
   
   async updateDraftOrder(id: string, customerId: string, lineItems: LineItemInput[], metafields: any[], shippingAddress: ShippingAddressInput) {
     try {
@@ -795,8 +960,6 @@ async updateDraftOrderAddress(draftOrderId: string, shippingAddress: ShippingAdd
     }
   }
   
-  
-
   async isDraftOrderCompleted(id: string): Promise<boolean> {
     try {
       const response = await axios({
@@ -828,8 +991,6 @@ async updateDraftOrderAddress(draftOrderId: string, shippingAddress: ShippingAdd
       throw new Error('Failed to check draft order completion status.');
     }
   }
-  
-  
   
   async sendShippingRequestEmail(userId: string, draftOrderId: string) {
     const transporter = nodemailer.createTransport({
