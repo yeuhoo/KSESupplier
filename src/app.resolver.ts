@@ -65,6 +65,7 @@ async draftOrders() {
         title: item.title,
         quantity: item.quantity,
         price: item.price, // Include price
+        variant_title: item.variant_title,
         currency: item.currency // Include currency
       })),
       metafields: order.metafields.map(metafield => ({
@@ -150,8 +151,8 @@ async createDraftOrder(
     @Args('id') id: string,
     @Args('customerId') customerId: string,  // Add the customerId
     @Args('lineItems', { type: () => [LineItemInput] }) lineItems: LineItemInput[],
-    @Args('metafields', { type: () => [MetafieldInput], nullable: true }) metafields: any[] = [],
-    @Args('shippingAddress', { type: () => ShippingAddressInput, nullable: true }) shippingAddress: ShippingAddressInput  // Add shippingAddress argument
+    @Args('shippingAddress', { type: () => ShippingAddressInput, nullable: true }) shippingAddress: ShippingAddressInput,  // Add shippingAddress argument
+    @Args('metafields', { type: () => [MetafieldInput], nullable: true }) metafields: any[] = []
   ) {
     try {
       const updatedDraftOrder = await this.appService.updateDraftOrder(id, customerId, lineItems, metafields, shippingAddress);  // Pass shippingAddress

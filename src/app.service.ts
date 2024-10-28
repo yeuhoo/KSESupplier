@@ -4,7 +4,6 @@ import { LineItemInput } from './dto/draft-order.input';
 import { ConfigService } from '@nestjs/config';
 import { ShippingAddressInput } from './dto/shipping-address.input';
 import { MetafieldInput } from './dto/metafield.input';
-import { PropertyInput } from './dto/property.input';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
@@ -12,7 +11,7 @@ export class AppService {
   private readonly shopifyApiUrl: string;
   private readonly shopifyAccessToken: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     this.shopifyApiUrl = this.configService.get<string>('SHOPIFY_API_URL');
     this.shopifyAccessToken = this.configService.get<string>('SHOPIFY_ACCESS_TOKEN');
   }
@@ -326,44 +325,45 @@ async createDraftOrder(
         data: {
           query: `
             {
-              draftOrders(first: 10) {
-                edges {
-                  node {
-                    id
-                    invoiceUrl
-                    createdAt
-                    customer {
-                      id
-                    }
-                    lineItems(first: 10) {
-                      edges {
+                draftOrders(first: 10) {
+                    edges {
                         node {
-                          title
-                          quantity
-                        variant {
-                            price
-                          }
+                            id
+                            invoiceUrl
+                            createdAt
+                            customer {
+                            id
+                            }
+                            lineItems(first: 10) {
+                                edges {
+                                    node {
+                                    title
+                                    quantity
+                                    variant {
+                                        price
+                                    }
+                                    variantTitle
+                                    }
+                                }
+                            }
+                            metafields(first: 10) {
+                                edges {
+                                    node {
+                                    id
+                                    namespace
+                                    key
+                                    value
+                                    }
+                                }
+                            }
                         }
-                      }
                     }
-                    metafields(first: 10) {
-                      edges {
-                        node {
-                          id
-                          namespace
-                          key
-                          value
-                        }
-                      }
-                    }
-                  }
                 }
-              }
             }
           `,
         },
     });
-    console.log(response.data);
+    console.log(response.data.data.draftOrders.edges[0].node.lineItems.edges[0].node.variantTitle);
       return response.data.data.draftOrders.edges.map((edge) => ({
         id: edge.node.id,
         invoiceUrl: edge.node.invoiceUrl,
@@ -373,6 +373,7 @@ async createDraftOrder(
           title: item.node.title,
           quantity: item.node.quantity,
           price: item.node.variant?.price,
+          variant_title: item.node.variantTitle,
         })),
         metafields: edge.node.metafields.edges.map((mf) => mf.node),
       }));
