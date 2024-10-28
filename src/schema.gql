@@ -43,6 +43,7 @@ type Metafield {
 type LineItem {
   title: String!
   quantity: Float!
+  variant_title: String
   price: Float
   discounted_price: Float
   final_price: Float
@@ -81,7 +82,7 @@ type Mutation {
   requestShippingFee(userId: String!, draftOrderId: String!, shippingAddress: ShippingAddressInput!): Boolean!
   calculateDraftOrderById(draftOrderId: String!): DraftOrder!
   createDraftOrder(customerId: String!, lineItems: [LineItemInput!]!, shippingAddress: ShippingAddressInput!, metafields: [MetafieldInput!], note: String): DraftOrder!
-  updateDraftOrder(id: String!, customerId: String!, lineItems: [LineItemInput!]!, metafields: [MetafieldInput!], shippingAddress: ShippingAddressInput): DraftOrder!
+  updateDraftOrder(id: String!, customerId: String!, lineItems: [LineItemInput!]!, shippingAddress: ShippingAddressInput, metafields: [MetafieldInput!]): DraftOrder!
   deleteDraftOrder(id: String!): String!
   completeDraftOrder(id: String!, shippingAddress: ShippingAddressInput!): Boolean!
 }
