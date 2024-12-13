@@ -16,4 +16,5 @@ export class ShippingAddressInput {
 
   @Field()
   zip: string;
+  address2: any;
 }

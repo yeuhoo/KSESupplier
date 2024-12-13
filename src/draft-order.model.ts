@@ -35,6 +35,7 @@ export class LineItem {
 
     @Field({ nullable: true })
     final_price?: number;
+    variant_id: string;
 }
 
 
