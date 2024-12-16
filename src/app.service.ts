@@ -1025,58 +1025,64 @@ export class AppService {
   
   async completeDraftOrder(id: string) {
     try {
-      const response = await axios({
-        url: this.shopifyApiUrl,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': this.shopifyAccessToken,
-        },
-        data: {
-          query: `
-            mutation draftOrderComplete($id: ID!) {
-              draftOrderComplete(id: $id) {
-                draftOrder {
-                  id
-                  order {
-                    id
-                  }
-                }
-                userErrors {
-                  field
-                  message
-                }
-              }
-            }
-          `,
-          variables: {
-            id: `gid://shopify/DraftOrder/${id}`,
-          },
-        },
-      });
-  
-      const { data } = response;
-      if (data.errors) {
-        console.error('Shopify API errors:', data.errors);
-        throw new Error(data.errors[0]?.message || 'Unknown error from Shopify API');
-      }
-  
-      const draftOrderComplete = data.data?.draftOrderComplete;
-      if (draftOrderComplete.userErrors && draftOrderComplete.userErrors.length > 0) {
-        throw new Error(draftOrderComplete.userErrors[0].message);
-      }
-  
-      if (!draftOrderComplete || !draftOrderComplete.draftOrder) {
-        throw new Error('Draft order completion failed.');
-      }
-  
-      return draftOrderComplete.draftOrder;
-  
+        // Ensure id is formatted correctly
+        const formattedId = id.startsWith('gid://shopify/DraftOrder/') 
+            ? id 
+            : `gid://shopify/DraftOrder/${id}`;
+
+        const response = await axios({
+            url: this.shopifyApiUrl,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': this.shopifyAccessToken,
+            },
+            data: {
+                query: `
+                    mutation draftOrderComplete($id: ID!) {
+                        draftOrderComplete(id: $id) {
+                            draftOrder {
+                                id
+                                order {
+                                    id
+                                }
+                            }
+                            userErrors {
+                                field
+                                message
+                            }
+                        }
+                    }
+                `,
+                variables: {
+                    id: formattedId, // Use the validated/constructed ID
+                },
+            },
+        });
+
+        const { data } = response;
+        if (data.errors) {
+            console.error('Shopify API errors:', data.errors);
+            throw new Error(data.errors[0]?.message || 'Unknown error from Shopify API');
+        }
+
+        const draftOrderComplete = data.data?.draftOrderComplete;
+        if (draftOrderComplete.userErrors && draftOrderComplete.userErrors.length > 0) {
+            throw new Error(draftOrderComplete.userErrors[0].message);
+        }
+
+        if (!draftOrderComplete || !draftOrderComplete.draftOrder) {
+            throw new Error('Draft order completion failed.');
+        }
+
+        return draftOrderComplete.draftOrder;
+
     } catch (error) {
-      console.error('Error completing draft order:', error.message);
-      throw new Error('Failed to complete draft order.');
+        console.error('Error completing draft order:', error.message);
+        throw new Error('Failed to complete draft order.');
     }
-  }
+}
+
 
   async getCustomerAccessToken(email: string, password: string): Promise<string> {
     try {
