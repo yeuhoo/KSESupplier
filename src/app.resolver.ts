@@ -8,7 +8,6 @@ import { ShippingAddressInput } from './dto/shipping-address.input';
 import { DraftOrderInput, LineItemInput } from './dto/draft-order.input';
 import { PropertyInput } from './dto/property.input';
 import { DraftOrderTag } from './dto/draft-order-tag.model';
-import { CheckoutInput } from './dto/checkout.input';
 
 @Resolver()
 export class AppResolver {
@@ -57,16 +56,6 @@ async requestShippingFee(
 @Query(() => Boolean)
 async isDraftOrderCompleted(@Args('id') id: string): Promise<boolean> {
   return this.appService.isDraftOrderCompleted(id);
-}
-
-@Query(() => [String], { nullable: true })
-async getVariantMetafields(@Args('variantId') variantId: string): Promise<Record<string, string>> {
-  try {
-    return await this.appService.getVariantMetafields(variantId);
-  } catch (error) {
-    console.error('Error fetching variant metafields in resolver:', error.message);
-    throw new Error('Failed to fetch variant metafields.');
-  }
 }
 
 
@@ -250,62 +239,10 @@ async createDraftOrder(
         }
     }
 
-
-
-  @Mutation(() => Boolean)
-  async addDraftOrderToCart(
-    @Args('draftOrderId') draftOrderId: string,
-    @Args('customerId') customerId: string,
-  ): Promise<boolean> {
-    try {
-      const draftOrder = await this.appService.getDraftOrderById(draftOrderId);
-      if (!draftOrder) {
-        throw new Error('Draft order not found.');
-      }
-
-      await this.appService.addItemsToCart(draftOrder.lineItems, customerId);
-      return true;
-    } catch (error) {
-      console.error('Error adding draft order to cart:', error.message);
-      throw new Error('Failed to add draft order to cart.');
-    }
-  }
-
-  
-
-    
-
-
   @Query(() => [DraftOrderTag])
   async getDraftOrderTags(@Args('draftOrderId') draftOrderId: string): Promise<DraftOrderTag[]> {
       return this.appService.getDraftOrderTags(draftOrderId);
   }
-
-  @Mutation(() => Boolean)
-  async addCustomerAddress(
-    @Args('customerAccessToken', { type: () => String }) customerAccessToken: string,
-    @Args('input', { type: () => ShippingAddressInput }) input: ShippingAddressInput,
-  ): Promise<boolean> {
-    console.log('Received Token:', customerAccessToken);
-    console.log('Received Input:', input);
-    try {
-      return await this.appService.addCustomerAddress(customerAccessToken, input);
-    } catch (error) {
-      console.error('Error in addCustomerAddress resolver:', error.message);
-      throw new Error('Failed to add customer address.');
-    }
-  }
-  
-  
-
-  @Mutation(() => String)
-async getCustomerAccessToken(
-  @Args('email') email: string,
-  @Args('password') password: string,
-): Promise<string> {
-  return this.appService.getCustomerAccessToken(email, password);
-}
-
 
   @Mutation(() => DraftOrderTag)
   async updateDraftOrderTag(
@@ -313,12 +250,6 @@ async getCustomerAccessToken(
       @Args('tag') tag: string
   ): Promise<DraftOrderTag> {
       return this.appService.updateDraftOrderTag(draftOrderId, tag);
-  }
-
-  @Mutation(() => String)
-  async processCheckout(@Args('checkoutInput') checkoutInput: CheckoutInput): Promise<string> {
-    const result = await this.appService.processCheckout(checkoutInput);
-    return result.webUrl; // Return the checkout URL for the frontend
   }
   
 }

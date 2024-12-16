@@ -81,7 +81,6 @@ type Query {
   user(id: String!): User
   getDraftOrder(id: String!): DraftOrder
   isDraftOrderCompleted(id: String!): Boolean!
-  getVariantMetafields(variantId: String!): [String!]
   draftOrders: [DraftOrder!]!
   checkForShippingFee(draftOrderId: String!): String
   getDraftOrderTags(draftOrderId: String!): [DraftOrderTag!]!
@@ -95,11 +94,7 @@ type Mutation {
   deleteDraftOrder(id: String!): String!
   completeDraftOrder(id: String!, shippingAddress: ShippingAddressInput!): Boolean!
   createDraftOrderTag(draftOrderId: String!, tag: String!): Boolean!
-  addDraftOrderToCart(draftOrderId: String!, customerId: String!): Boolean!
-  addCustomerAddress(customerAccessToken: String!, input: ShippingAddressInput!): Boolean!
-  getCustomerAccessToken(email: String!, password: String!): String!
   updateDraftOrderTag(draftOrderId: String!, tag: String!): DraftOrderTag!
-  processCheckout(checkoutInput: CheckoutInput!): String!
 }
 
 input ShippingAddressInput {
@@ -128,23 +123,4 @@ input MetafieldInput {
   key: String!
   value: String!
   type: String!
-}
-
-input CheckoutInput {
-  customerEmail: String!
-  customerFirstName: String!
-  customerLastName: String!
-  address1: String!
-  address2: String
-  city: String!
-  province: String!
-  country: String!
-  zip: String!
-  cartItems: [CartItemInput!]!
-}
-
-input CartItemInput {
-  productId: String!
-  variantId: String!
-  quantity: Float!
 }
