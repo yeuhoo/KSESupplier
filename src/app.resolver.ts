@@ -8,6 +8,7 @@ import { ShippingAddressInput } from './dto/shipping-address.input';
 import { DraftOrderInput, LineItemInput } from './dto/draft-order.input';
 import { PropertyInput } from './dto/property.input';
 import { DraftOrderTag } from './dto/draft-order-tag.model';
+import { title } from 'process';
 
 @Resolver()
 export class AppResolver {
@@ -30,8 +31,8 @@ async user(@Args('id') id: string) {
 }
 
 @Query(() => DraftOrder, { nullable: true })
-async getDraftOrder(@Args('id') id: string): Promise<DraftOrder> {
-    return this.appService.getDraftOrderById(id);
+async getDraftOrder(@Args('id', { type: () => String }) id: string): Promise<DraftOrder> {
+  return this.appService.getDraftOrderById(id);
 }
 
 
@@ -63,54 +64,79 @@ async isDraftOrderCompleted(@Args('id') id: string): Promise<boolean> {
 async draftOrders() {
   try {
     const draftOrders = await this.appService.getDraftOrders();
-    return draftOrders.map(order => ({
+
+    return draftOrders.map((order) => ({
       id: order.id,
-      customerId: order.customerId,
-      invoiceUrl: order.invoiceUrl,
-      createdAt: order.createdAt,
-      lineItems: order.lineItems.map(item => ({
-        title: item.title,
-        quantity: item.quantity,
-        price: item.price, // Include price
-        variant_title: item.variant_title,
-        currency: item.currency // Include currency
-      })),
-      metafields: order.metafields.map(metafield => ({
+      name: order.name || null,
+      customer: order.customer
+        ? {
+            customerId: order.customerId || "N/A",
+            firstName: order.customer.firstName || "N/A",
+            lastName: order.customer.lastName || "N/A",
+            email: order.customer.email || "N/A",
+          }
+        : null,
+      invoiceUrl: order.invoiceUrl || null,
+      createdAt: order.createdAt || null,
+      lineItems: order.lineItems?.map((item) => ({
+        title: item.title || "N/A",
+        quantity: item.quantity || 0,
+        variant: {
+          id: item.variant?.id || "N/A",
+          title: item.variant?.title || "N/A",
+          price: item.variant?.price || 0,
+          metafields: item.variant?.metafields?.map((metafield) => ({
+            key: metafield.key,
+            value: metafield.value,
+          })) || [],
+        },
+      })) || [],
+      shippingAddress: order.shippingAddress
+        ? {
+            address1: order.shippingAddress.address1 || "N/A",
+            city: order.shippingAddress.city || "N/A",
+            province: order.shippingAddress.province || "N/A",
+            country: order.shippingAddress.country || "N/A",
+            zip: order.shippingAddress.zip || "N/A",
+          }
+        : null,
+      metafields: order.metafields?.map((metafield) => ({
         id: metafield.id,
         namespace: metafield.namespace,
         key: metafield.key,
         value: metafield.value,
-      })),
-      shippingAddress: order.shippingAddress ? {
-        address1: order.shippingAddress.address1,
-        city: order.shippingAddress.city,
-        province: order.shippingAddress.province,
-        country: order.shippingAddress.country,
-        zip: order.shippingAddress.zip,
-      } : null,
-      order: order.order,
+      })) || [],
     }));
   } catch (error) {
-    console.error('Error fetching draft orders:', error.message);
-    throw new Error('Failed to fetch draft orders.');
+    console.error("Error fetching draft orders:", error.message);
+    throw new Error("Failed to fetch draft orders.");
   }
 }
 
-@Query(() => String, { nullable: true })  // Assuming the shipping fee is a string, adjust if needed
-async checkForShippingFee(@Args('draftOrderId') draftOrderId: string): Promise<string | null> {
+
+
+
+@Query(() => String, { nullable: true }) // Adjust to return a nullable string
+async checkForShippingFee(
+  @Args('draftOrderId') draftOrderId: string
+): Promise<string | null> {
   try {
+    console.log('draftOrderId', draftOrderId);
+    // Fetch the shipping fee
     const shippingFee = await this.appService.checkForShippingFee(draftOrderId);
 
+    // Return formatted shipping fee if present
     if (shippingFee > 0) {
       return `$${shippingFee.toFixed(2)}`;
     } else {
-      return null;  // No shipping fee present
+      return null; // No shipping fee present
     }
   } catch (error) {
     console.error('Error checking for shipping fee:', error.message);
     throw new Error('Failed to check for shipping fee.');
   }
 }
+
 
 @Mutation(() => DraftOrder)
 async calculateDraftOrderById(
@@ -223,15 +249,19 @@ async createDraftOrder(
     }
   }
 
-
   //DRAFT ORDER TAGS
     @Mutation(() => Boolean)
     async createDraftOrderTag(
         @Args('draftOrderId') draftOrderId: string,
-        @Args('tag') tag: string
+        @Args('tag') tag: string,
+        @Args('userId') userId: string
     ): Promise<boolean> {
         try {
             await this.appService.createDraftOrderTag(draftOrderId, tag);
+
+            if (tag === 'Placed') {
+              await this.appService.placeOrderEmail(userId, draftOrderId);
+            }
             return true; // Return true if tag creation is successful
         } catch (error) {
             console.error('Error creating draft order tag:', error.message);

@@ -3,91 +3,168 @@ import { ShippingAddress } from './shipping-address.module';
 
 @ObjectType()
 export class Metafield {
-    @Field()
-    id: string;
+  @Field()
+  id: string;
 
-    @Field()
-    namespace: string;
+  @Field()
+  namespace: string;
 
-    @Field()
-    key: string;
+  @Field()
+  key: string;
 
-    @Field()
-    value: string;
+  @Field()
+  value: string;
+}
+
+@ObjectType()
+export class TaxLine {
+  @Field()
+  title: string;
+
+  @Field()
+  source: string;
+
+  @Field()
+  rate: number;
+
+  @Field()
+  ratePercentage: number;
+}
+
+@ObjectType()
+export class Money {
+  @Field()
+  amount: string;
+
+  @Field()
+  currencyCode: string;
+}
+
+@ObjectType()
+export class ShippingLine {
+  @Field()
+  id: string;
+
+  @Field()
+  title: string;
+
+  @Field({ nullable: true })
+  carrierIdentifier?: string;
+
+  @Field()
+  custom: boolean;
+
+  @Field()
+  code: string;
+
+  @Field({ nullable: true })
+  deliveryCategory?: string;
+}
+
+@ObjectType()
+export class Variant {
+  @Field({ nullable: true })
+  id?: string;
+
+  @Field({ nullable: true })
+  title?: string;
+
+  @Field({ nullable: true })
+  price?: number;
+
+  @Field(() => [Metafield], { nullable: true })
+  metafields?: Metafield[];
 }
 
 @ObjectType()
 export class LineItem {
-    @Field()
-    title: string;
+  @Field()
+  id: string;
 
-    @Field()
-    quantity: number;
+  @Field()
+  title: string;
 
-    @Field({ nullable: true })
-    variant_title: string;
+  @Field({ nullable: true })
+  name?: string;
 
-    @Field({ nullable: true })
-    price?: number;
+  @Field()
+  quantity: number;
 
-    @Field({ nullable: true })
-    discounted_price?: number;
+  @Field(() => Variant, { nullable: true })
+  variant?: Variant;
 
-    @Field({ nullable: true })
-    final_price?: number;
+  @Field({ nullable: true })
+  sku?: string;
+
+  @Field({ nullable: true })
+  vendor?: string;
+
+  @Field({ nullable: true })
+  requiresShipping?: boolean;
+
+  @Field(() => [TaxLine], { nullable: true })
+  taxLines?: TaxLine[];
 }
 
-
 @ObjectType()
-export class CartLevelDiscount {
-    @Field()
-    code: string;
+export class Customer {
+  @Field({ nullable: true })
+  id: string;
 
-    @Field()
-    value: number;
-}
+  @Field({ nullable: true })
+  email?: string;
 
-@ObjectType()
-export class Order {
-    @Field()
-    id: string;
+  @Field({ nullable: true })
+  firstName?: string;
+
+  @Field({ nullable: true })
+  lastName?: string;
+
+  @Field(() => [String], { nullable: true })
+  tags?: string[];
 }
 
 @ObjectType()
 export class DraftOrder {
-    @Field()
-    id: string;
+  @Field()
+  id: string;
 
-    @Field({ nullable: true })
-    customerId?: string;
+  @Field({ nullable: true })
+  name?: string;
 
-    @Field({ nullable: true })
-    note?: string;
+  @Field({ nullable: true })
+  note?: string;
 
-    @Field({ nullable: true })
-    original_total_price?: number;
+  @Field({ nullable: true })
+  createdAt?: string;
 
-    @Field({ nullable: true })
-    total_price?: number;
+  @Field({ nullable: true })
+  updatedAt?: string;
 
-    @Field({ nullable: true })
-    total_discount?: number;
+  @Field({ nullable: true })
+  completedAt?: string;
 
-    @Field({ nullable: true })
-    requires_shipping?: boolean;
+  @Field({ nullable: true })
+  status?: string;
 
-    @Field(() => [LineItem], { nullable: true })
-    lineItems?: LineItem[];
+  @Field({ nullable: true })
+  taxesIncluded?: boolean;
 
-    @Field({ nullable: true })
-    createdAt?: string;
+  @Field(() => [LineItem], { nullable: true })
+  lineItems?: LineItem[];
 
-    @Field(() => [Metafield], { nullable: true })
-    metafields?: Metafield[];
+  @Field(() => ShippingAddress, { nullable: true })
+  shippingAddress?: ShippingAddress;
 
-    @Field(() => [CartLevelDiscount], { nullable: true })
-    cart_level_discount_applications?: CartLevelDiscount[];
+  @Field(() => ShippingLine, { nullable: true })
+  shippingLine?: ShippingLine;
 
-    @Field(() => ShippingAddress, { nullable: true })
-    shippingAddress?: ShippingAddress;
+  @Field(() => [TaxLine], { nullable: true })
+  taxLines?: TaxLine[];
+
+  @Field(() => Customer, { nullable: true })
+  customer?: Customer;
+
+  @Field({ nullable: true })
+  invoiceUrl?: string;
 }

@@ -40,33 +40,64 @@ type Metafield {
   value: String!
 }
 
-type LineItem {
+type TaxLine {
   title: String!
-  quantity: Float!
-  variant_title: String
-  price: Float
-  discounted_price: Float
-  final_price: Float
+  source: String!
+  rate: Float!
+  ratePercentage: Float!
 }
 
-type CartLevelDiscount {
+type ShippingLine {
+  id: String!
+  title: String!
+  carrierIdentifier: String
+  custom: Boolean!
   code: String!
-  value: Float!
+  deliveryCategory: String
+}
+
+type Variant {
+  id: String
+  title: String
+  price: Float
+  metafields: [Metafield!]
+}
+
+type LineItem {
+  id: String!
+  title: String!
+  name: String
+  quantity: Float!
+  variant: Variant
+  sku: String
+  vendor: String
+  requiresShipping: Boolean
+  taxLines: [TaxLine!]
+}
+
+type Customer {
+  id: String
+  email: String
+  firstName: String
+  lastName: String
+  tags: [String!]
 }
 
 type DraftOrder {
   id: String!
-  customerId: String
+  name: String
   note: String
-  original_total_price: Float
-  total_price: Float
-  total_discount: Float
-  requires_shipping: Boolean
-  lineItems: [LineItem!]
   createdAt: String
-  metafields: [Metafield!]
-  cart_level_discount_applications: [CartLevelDiscount!]
+  updatedAt: String
+  completedAt: String
+  status: String
+  taxesIncluded: Boolean
+  lineItems: [LineItem!]
   shippingAddress: ShippingAddress
+  shippingLine: ShippingLine
+  taxLines: [TaxLine!]
+  customer: Customer
+  invoiceUrl: String
 }
 
 type DraftOrderTag {
@@ -93,7 +124,7 @@ type Mutation {
   updateDraftOrder(id: String!, customerId: String!, lineItems: [LineItemInput!]!, shippingAddress: ShippingAddressInput, metafields: [MetafieldInput!]): DraftOrder!
   deleteDraftOrder(id: String!): String!
   completeDraftOrder(id: String!, shippingAddress: ShippingAddressInput!): Boolean!
-  createDraftOrderTag(draftOrderId: String!, tag: String!): Boolean!
+  createDraftOrderTag(draftOrderId: String!, tag: String!, userId: String!): Boolean!
   updateDraftOrderTag(draftOrderId: String!, tag: String!): DraftOrderTag!
 }
 
