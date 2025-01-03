@@ -509,6 +509,11 @@ async getDraftOrders() {
                     firstName
                     lastName
                     email
+                    name {
+                          company {
+                            name
+                          }
+                        }
                   }
                   shippingAddress {
                     address1
