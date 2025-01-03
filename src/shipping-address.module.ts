@@ -10,6 +10,9 @@ export class ShippingAddress {
 
   @Field()
   province: string;
+  
+  @Field({ nullable: true })
+  company?: string;
 
   @Field()
   country: string;
