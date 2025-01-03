@@ -96,6 +96,7 @@ async draftOrders() {
             address1: order.shippingAddress.address1 || "N/A",
             city: order.shippingAddress.city || "N/A",
             province: order.shippingAddress.province || "N/A",
+            company: order.shippingAddress.company || "N/A",
             country: order.shippingAddress.country || "N/A",
             zip: order.shippingAddress.zip || "N/A",
           }
