@@ -10,6 +10,9 @@ export class ShippingAddressInput {
 
   @Field()
   province: string;
+  
+  @Field({ nullable: true })
+  company?: string;
 
   @Field()
   country: string;
