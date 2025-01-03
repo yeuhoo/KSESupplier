@@ -122,6 +122,24 @@ export class Customer {
 
   @Field(() => [String], { nullable: true })
   tags?: string[];
+
+  @Field(() => CompanyContactProfiles, { nullable: true })
+  contactProfile?: CompanyContactProfiles;
+}
+
+@ObjectType()
+export class Company {
+  @Field({ nullable: true })
+  id?: string;
+
+  @Field({ nullable: true })
+  name?: string;
+}
+
+@ObjectType()
+export class CompanyContactProfiles {
+  @Field(() => Company, { nullable: true })
+  company?: Company;
 }
 
 @ObjectType()
