@@ -573,9 +573,15 @@ async getDraftOrders() {
             firstName: order.customer.firstName,
             lastName: order.customer.lastName,
             email: order.customer.email,
-            company: order.shippingAddress?.company  || "N/A",
-          }
-        : null,
+            companyContactProfiles: order.customer.companyContactProfiles
+            ? order.customer.companyContactProfiles.map((profile) => ({
+              company: {
+                name: profile.company?.name || "N/A",
+              },
+            }))
+          : [],
+      }
+    : null,
       shippingAddress: order.shippingAddress
         ? {
             address1: order.shippingAddress.address1,
