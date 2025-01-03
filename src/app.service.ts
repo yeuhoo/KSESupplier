@@ -1006,51 +1006,57 @@ async getDraftOrders() {
     }
   }
   
-  async deleteDraftOrder(id: string) {
-    try {
-      const response = await axios({
-        url: this.shopifyApiUrl,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': this.shopifyAccessToken,
-        },
-        data: {
-          query: `
-            mutation draftOrderDelete($input: DraftOrderDeleteInput!) {
-              draftOrderDelete(input: $input) {
-                deletedId
-                userErrors {
-                  field
-                  message
-                }
+ async deleteDraftOrder(id: string) {
+  try {
+    // Ensure the draft order ID has the correct prefix
+    const formattedDraftOrderId = id.startsWith('gid://shopify/DraftOrder/')
+      ? id // Use as-is if it's already prefixed
+      : `gid://shopify/DraftOrder/${id}`; // Add prefix if it's missing
+
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: {
+        query: `
+          mutation draftOrderDelete($input: DraftOrderDeleteInput!) {
+            draftOrderDelete(input: $input) {
+              deletedId
+              userErrors {
+                field
+                message
               }
             }
-          `,
-          variables: {
-            input: {
-              id: `gid://shopify/DraftOrder/${id}`,
-            },
+          }
+        `,
+        variables: {
+          input: {
+            id: formattedDraftOrderId, // Use the formatted ID here
           },
         },
-      });
-  
-      const { draftOrderDelete } = response.data.data;
-  
-      if (draftOrderDelete.userErrors.length > 0) {
-        throw new Error(draftOrderDelete.userErrors[0].message);
-      }
-  
-      return draftOrderDelete.deletedId;
-    } catch (error) {
-      if (error.response) {
-        console.error('Error Status:', error.response.status);
-        console.error('Error Data:', error.response.data);
-      }
-      console.error('Error deleting draft order:', error.message);
-      throw new Error('Failed to delete draft order.');
+      },
+    });
+
+    const { draftOrderDelete } = response.data.data;
+
+    if (draftOrderDelete.userErrors.length > 0) {
+      throw new Error(draftOrderDelete.userErrors[0].message);
     }
+
+    return draftOrderDelete.deletedId;
+  } catch (error) {
+    if (error.response) {
+      console.error('Error Status:', error.response.status);
+      console.error('Error Data:', error.response.data);
+    }
+    console.error('Error deleting draft order:', error.message);
+    throw new Error('Failed to delete draft order.');
   }
+}
+
   
   async completeDraftOrder(id: string) {
     try {
