@@ -514,6 +514,7 @@ async getDraftOrders() {
                     address1
                     city
                     province
+                    company
                     country
                     zip
                   }
@@ -574,6 +575,7 @@ async getDraftOrders() {
             address1: order.shippingAddress.address1,
             city: order.shippingAddress.city,
             province: order.shippingAddress.province,
+            company: order.shippingAddress.company,
             country: order.shippingAddress.country,
             zip: order.shippingAddress.zip,
           }
