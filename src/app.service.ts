@@ -573,7 +573,7 @@ async getDraftOrders() {
             firstName: order.customer.firstName,
             lastName: order.customer.lastName,
             email: order.customer.email,
-            company: order.customer.companyContactProfiles?.company?.name || "N/A",
+            company: order.shippingAddress?.company  || "N/A",
           }
         : null,
       shippingAddress: order.shippingAddress
