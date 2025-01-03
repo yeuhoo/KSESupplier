@@ -74,7 +74,7 @@ async draftOrders() {
             firstName: order.customer.firstName || "N/A",
             lastName: order.customer.lastName || "N/A",
             email: order.customer.email || "N/A",
-            company: order.customer.companyContactProfiles?.[0]?.company?.name || "N/A",
+            company: order.shippingAddress?.company  || "N/A",
           }
         : null,
       invoiceUrl: order.invoiceUrl || null,
