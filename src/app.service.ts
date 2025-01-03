@@ -1153,15 +1153,17 @@ async getDraftOrders() {
       },
     });
 
+    const numericDraftOrderId = draftOrderId.replace('gid://shopify/DraftOrder/', '');
+
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: 'it@hafstaff.com',
-      subject: `Request Shipping Fee: ${draftOrderId}`,
+      subject: `Request Shipping Fee: ${numericDraftOrderId}`,
       text: `
         User ID: ${userId}
-        Draft Order ID: ${draftOrderId}
+        Draft Order ID: ${numericDraftOrderId}
         It would be great if you click this link!
-        https://admin.shopify.com/store/kse-suppliers/draft_orders/${draftOrderId}
+        https://admin.shopify.com/store/kse-suppliers/draft_orders/${numericDraftOrderId}
         
         User requests for shipping fee for this draft order.
       `,
