@@ -879,6 +879,7 @@ async getDraftOrders() {
             address1: "${shippingAddress.address1}",
             city: "${shippingAddress.city}",
             province: "${shippingAddress.province}",
+            company: "${shippingAddress.company}",
             country: "${shippingAddress.country}",
             zip: "${shippingAddress.zip}"
           }
