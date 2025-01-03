@@ -138,8 +138,8 @@ export class Customer {
   @Field(() => [String], { nullable: true })
   tags?: string[];
 
-  @Field(() => CompanyContactProfiles, { nullable: true })
-  contactProfile?: CompanyContactProfiles;
+  @Field(() => [CompanyContactProfiles], { nullable: true }) 
+  companyContactProfiles?: CompanyContactProfiles[];
 }
 
 
