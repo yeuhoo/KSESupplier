@@ -107,6 +107,23 @@ export class LineItem {
 }
 
 @ObjectType()
+export class CompanyContactProfiles {
+  @Field(() => Company, { nullable: true })
+  company?: Company;
+}
+
+@ObjectType()
+export class Company {
+  @Field({ nullable: true })
+  id?: string;
+
+  @Field({ nullable: true })
+  name?: string;
+}
+
+
+
+@ObjectType()
 export class Customer {
   @Field({ nullable: true })
   id: string;
@@ -127,20 +144,7 @@ export class Customer {
   contactProfile?: CompanyContactProfiles;
 }
 
-@ObjectType()
-export class Company {
-  @Field({ nullable: true })
-  id?: string;
 
-  @Field({ nullable: true })
-  name?: string;
-}
-
-@ObjectType()
-export class CompanyContactProfiles {
-  @Field(() => Company, { nullable: true })
-  company?: Company;
-}
 
 @ObjectType()
 export class DraftOrder {
