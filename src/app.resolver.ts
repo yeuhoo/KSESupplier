@@ -74,13 +74,6 @@ async draftOrders() {
             firstName: order.customer.firstName || "N/A",
             lastName: order.customer.lastName || "N/A",
             email: order.customer.email || "N/A",
-            companyContactProfiles: order.customer.companyContactProfiles
-              ? order.customer.companyContactProfiles.map((profile) => ({
-                  company: {
-                    name: profile.company?.name || "N/A",
-                  },
-                }))
-              : [],
           }
         : null,
       invoiceUrl: order.invoiceUrl || null,

@@ -509,11 +509,6 @@ async getDraftOrders() {
                     firstName
                     lastName
                     email
-                    companyContactProfiles {
-                          company {
-                            name
-                          }
-                        }
                   }
                   shippingAddress {
                     address1
@@ -560,89 +555,53 @@ async getDraftOrders() {
       },
     });
 
-    if (!response.data || !response.data.data || !response.data.data.draftOrders) {
-      console.error("Draft orders data is null or undefined:", response.data);
-      throw new Error("Draft orders data is unavailable.");
-    }
-
     const draftOrders = response.data.data.draftOrders.edges.map((edge) => edge.node);
 
-    // Log the draft orders to check the structure
-    console.log("Draft Orders Response:", JSON.stringify(draftOrders, null, 2));
-
-    return draftOrders.map((order) => {
-      // Add customer null checker
-      if (!order.customer) {
-        console.warn(`Order ID ${order.id} has no customer data.`);
-      } else {
-        if (!order.customer.id) console.warn(`Customer ID is null for order ${order.id}`);
-        if (!order.customer.firstName) console.warn(`First name is null for order ${order.id}`);
-        if (!order.customer.lastName) console.warn(`Last name is null for order ${order.id}`);
-        if (!order.customer.email) console.warn(`Email is null for order ${order.id}`);
-        if (!order.customer.companyContactProfiles) {
-          console.warn(`Company contact profiles are null for order ${order.id}`);
-        } else {
-          console.log(
-            `Customer company for order ${order.id}:`,
-            order.customer.companyContactProfiles.map((profile) => profile.company?.name || "N/A")
-          );
-        }
+    return draftOrders.map((order) => ({
+      id: order.id,
+      name: order.name,
+      invoiceUrl: order.invoiceUrl,
+      createdAt: order.createdAt,
+      customer: order.customer
+        ? {
+            id: order.customer.id,
+            firstName: order.customer.firstName,
+            lastName: order.customer.lastName,
+            email: order.customer.email,
       }
-
-      return {
-        id: order.id,
-        name: order.name,
-        invoiceUrl: order.invoiceUrl,
-        createdAt: order.createdAt,
-        customer: order.customer
-          ? {
-              id: order.customer.id,
-              firstName: order.customer.firstName,
-              lastName: order.customer.lastName,
-              email: order.customer.email,
-              companyContactProfiles: order.customer.companyContactProfiles
-                ? order.customer.companyContactProfiles.map((profile) => ({
-                    company: {
-                      name: profile.company?.name || "N/A",
-                    },
-                  }))
-                : [],
-            }
-          : null,
-        shippingAddress: order.shippingAddress
-          ? {
-              address1: order.shippingAddress.address1,
-              city: order.shippingAddress.city,
-              province: order.shippingAddress.province,
-              company: order.shippingAddress.company,
-              country: order.shippingAddress.country,
-              zip: order.shippingAddress.zip,
-            }
-          : null,
-        lineItems: order.lineItems.edges.map((item) => ({
-          title: item.node.title,
-          quantity: item.node.quantity,
-          variant: {
-            id: item.node.variant?.id,
-            title: item.node.variant?.title,
-            price: item.node.variant?.price,
-            metafields: item.node.variant?.metafields?.nodes || [],
-          },
-        })),
-        metafields: order.metafields.edges.map((mf) => ({
-          id: mf.node.id,
-          namespace: mf.node.namespace,
-          key: mf.node.key,
-          value: mf.node.value,
-        })),
-      };
-    });
+    : null,
+      shippingAddress: order.shippingAddress
+        ? {
+            address1: order.shippingAddress.address1,
+            city: order.shippingAddress.city,
+            province: order.shippingAddress.province,
+            company: order.shippingAddress.company,
+            country: order.shippingAddress.country,
+            zip: order.shippingAddress.zip,
+          }
+        : null,
+      lineItems: order.lineItems.edges.map((item) => ({
+        title: item.node.title,
+        quantity: item.node.quantity,
+        variant: {
+          id: item.node.variant?.id,
+          title: item.node.variant?.title,
+          price: item.node.variant?.price,
+          metafields: item.node.variant?.metafields?.nodes || [],
+        },
+      })),
+      metafields: order.metafields.edges.map((mf) => ({
+        id: mf.node.id,
+        namespace: mf.node.namespace,
+        key: mf.node.key,
+        value: mf.node.value,
+      })),
+    }));
   } catch (error) {
     console.error("Error fetching draft orders:", error.message);
     throw new Error("Failed to fetch draft orders.");
   }
 }
-
 
   async getDraftOrderById(id: string): Promise<DraftOrder> {
     try {
