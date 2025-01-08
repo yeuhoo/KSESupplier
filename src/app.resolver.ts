@@ -70,7 +70,7 @@ async draftOrders() {
       name: order.name || null,
       customer: order.customer
         ? {
-            id: order.customer.id || "N/A",
+            customerId: order.customer.customerId || "N/A",
             firstName: order.customer.firstName || "N/A",
             lastName: order.customer.lastName || "N/A",
             email: order.customer.email || "N/A",
