@@ -569,7 +569,7 @@ async getDraftOrders() {
       createdAt: order.createdAt,
       customer: order.customer
         ? {
-            id: order.customer?.id,
+            id: order.customer.id,
             firstName: order.customer.firstName,
             lastName: order.customer.lastName,
             email: order.customer.email,
