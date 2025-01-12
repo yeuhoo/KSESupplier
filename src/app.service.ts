@@ -603,44 +603,46 @@ async getDraftOrders() {
 }
 
 async newGetDraftOrders(): Promise<DraftOrder[]> {
-  const response = await axios({
-    url: this.shopifyApiUrl,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': this.shopifyAccessToken,
-    },
-    data: {
-      query: `
-        query {
-          draftOrders(first: 50) {
-            edges {
-              node {
-                id
-                name
-                createdAt
-                customer {
+  try {
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: {
+        query: `
+          query {
+            draftOrders(first: 50) {
+              edges {
+                node {
                   id
-                }
-                tags
-                shippingAddress {
-                  address1
-                  city
-                  province
-                  country
-                  zip
-                }
-                lineItems(first: 10) {
-                  edges {
-                    node {
-                      title
-                      quantity
-                      variant {
+                  name
+                  createdAt
+                  customer {
+                    id
+                  }
+                  tags
+                  shippingAddress {
+                    address1
+                    city
+                    province
+                    country
+                    zip
+                  }
+                  lineItems(first: 10) {
+                    edges {
+                      node {
                         title
-                        price
-                        metafields {
-                          key
-                          value
+                        quantity
+                        variant {
+                          title
+                          price
+                          metafields {
+                            key
+                            value
+                          }
                         }
                       }
                     }
@@ -649,22 +651,55 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
               }
             }
           }
-        }
-      `,
-    },
-  });
+        `,
+      },
+    });
 
-  const draftOrders = response.data.data.draftOrders.edges.map((edge) => {
-    const order = edge.node;
-    return {
-      ...order,
-      tags: order.tags || [],
-      lineItems: order.lineItems.edges.map((lineItemEdge) => lineItemEdge.node),
-    };
-  });
+    if (!response.data.data?.draftOrders?.edges) {
+      throw new Error('Draft orders not found in the response.');
+    }
 
-  return draftOrders;
+    const draftOrders = response.data.data.draftOrders.edges.map((edge) => {
+      const order = edge.node;
+
+      return {
+        id: order.id,
+        name: order.name,
+        createdAt: order.createdAt,
+        customer: order.customer
+          ? { id: order.customer.id }
+          : null,
+        tags: order.tags || [],
+        shippingAddress: order.shippingAddress
+          ? {
+              address1: order.shippingAddress.address1,
+              city: order.shippingAddress.city,
+              province: order.shippingAddress.province,
+              country: order.shippingAddress.country,
+              zip: order.shippingAddress.zip,
+            }
+          : null,
+        lineItems: order.lineItems.edges.map((lineItemEdge) => ({
+          title: lineItemEdge.node.title,
+          quantity: lineItemEdge.node.quantity,
+          variant: lineItemEdge.node.variant
+            ? {
+                title: lineItemEdge.node.variant.title,
+                price: lineItemEdge.node.variant.price,
+                metafields: lineItemEdge.node.variant.metafields || [],
+              }
+            : null,
+        })),
+      };
+    });
+
+    return draftOrders;
+  } catch (error) {
+    console.error('Error fetching draft orders:', error.message || error);
+    throw new Error('Failed to fetch draft orders.');
+  }
 }
+
 
 
 async fetchData(query: string): Promise<any> {
