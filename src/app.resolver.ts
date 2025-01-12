@@ -59,6 +59,20 @@ async isDraftOrderCompleted(@Args('id') id: string): Promise<boolean> {
   return this.appService.isDraftOrderCompleted(id);
 }
 
+@Query(() => [DraftOrder], { nullable: true })
+async getDraftOrdersByCustomerId(
+  @Args('customerId', { type: () => String }) customerId: string,
+): Promise<DraftOrder[]> {
+  const formattedCustomerId = customerId.startsWith('gid://shopify/Customer/')
+    ? customerId
+    : `gid://shopify/Customer/${customerId}`;
+
+  const allDraftOrders = await this.appService.newGetDraftOrders();
+
+  // Filter by customer ID
+  return allDraftOrders.filter(order => order.customer?.id === formattedCustomerId);
+}
+
 
 @Query(() => [DraftOrder])
 async draftOrders() {

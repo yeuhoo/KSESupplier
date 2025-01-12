@@ -484,6 +484,61 @@ async createDraftOrder(
   }
 }
 
+async newGetDraftOrders(): Promise<DraftOrder[]> {
+  const response = await axios({
+    url: this.shopifyApiUrl,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': this.shopifyAccessToken,
+    },
+    data: {
+      query: `
+        query {
+          draftOrders(first: 50) {
+            edges {
+              node {
+                id
+                name
+                invoiceUrl
+                createdAt
+                customer {
+                  id
+                  firstName
+                  lastName
+                  email
+                }
+                shippingAddress {
+                  address1
+                  city
+                  province
+                  country
+                  zip
+                }
+                lineItems(first: 10) {
+                  edges {
+                    node {
+                      title
+                      quantity
+                      variant {
+                        title
+                        price
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+    },
+  });
+
+  const draftOrders = response.data.data.draftOrders.edges.map(edge => edge.node);
+  return draftOrders;
+}
+
 
 async getDraftOrders() {
   try {
