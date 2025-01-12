@@ -658,6 +658,7 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
     const order = edge.node;
     return {
       ...order,
+      tags: order.tags || [],
       lineItems: order.lineItems.edges.map((lineItemEdge) => lineItemEdge.node),
     };
   });
