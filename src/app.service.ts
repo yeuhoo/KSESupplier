@@ -656,7 +656,8 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
     });
 
     if (!response.data.data?.draftOrders?.edges) {
-      throw new Error('Draft orders not found in the response.');
+      console.error('Draft orders not found in the API response.');
+      return [];
     }
 
     const draftOrders = response.data.data.draftOrders.edges.map((edge) => {
@@ -669,7 +670,7 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
         customer: order.customer
           ? { id: order.customer.id }
           : null,
-        tags: order.tags || [],
+        tags: order.tags || [], // Ensure `tags` is an array
         shippingAddress: order.shippingAddress
           ? {
               address1: order.shippingAddress.address1,
@@ -679,17 +680,17 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
               zip: order.shippingAddress.zip,
             }
           : null,
-        lineItems: order.lineItems.edges.map((lineItemEdge) => ({
+        lineItems: order.lineItems?.edges.map((lineItemEdge) => ({
           title: lineItemEdge.node.title,
           quantity: lineItemEdge.node.quantity,
           variant: lineItemEdge.node.variant
             ? {
                 title: lineItemEdge.node.variant.title,
                 price: lineItemEdge.node.variant.price,
-                metafields: lineItemEdge.node.variant.metafields || [],
+                metafields: lineItemEdge.node.variant.metafields?.nodes || [], // Ensure `metafields` is properly accessed
               }
             : null,
-        })),
+        })) || [],
       };
     });
 
@@ -699,6 +700,7 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
     throw new Error('Failed to fetch draft orders.');
   }
 }
+
 
 
 

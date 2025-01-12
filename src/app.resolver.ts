@@ -75,16 +75,18 @@ async getDraftOrdersByCustomerId(
   let filteredOrders = allDraftOrders.filter((order) => order.customer?.id === formattedCustomerId);
 
   // Filter by included tags if specified
-  if (includeTags && includeTags.length > 0) {
+  if (includeTags?.length) {
+    const includeSet = new Set(includeTags);
     filteredOrders = filteredOrders.filter((order) =>
-      order.tags.some((tag) => includeTags.includes(tag))
+      (order.tags || []).some((tag) => includeSet.has(tag))
     );
   }
 
   // Filter by excluded tags if specified
-  if (excludeTags && excludeTags.length > 0) {
+  if (excludeTags?.length) {
+    const excludeSet = new Set(excludeTags);
     filteredOrders = filteredOrders.filter(
-      (order) => !order.tags.some((tag) => excludeTags.includes(tag))
+      (order) => !(order.tags || []).some((tag) => excludeSet.has(tag))
     );
   }
 
