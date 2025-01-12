@@ -690,6 +690,24 @@ async getDraftOrders() {
   }
 }
 
+async fetchData(query: string): Promise<any> {
+  try {
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: { query },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching data:', error.message);
+    throw new Error('Failed to fetch data.');
+  }
+}
+
   async getDraftOrderById(id: string): Promise<DraftOrder> {
     try {
         const formattedId = id.startsWith('gid://shopify/DraftOrder/')

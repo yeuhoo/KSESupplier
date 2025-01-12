@@ -68,11 +68,31 @@ async getDraftOrdersByCustomerId(
     : `gid://shopify/Customer/${customerId}`;
 
   const allDraftOrders = await this.appService.newGetDraftOrders();
+    const filteredOrders = [];
 
-  // Filter by customer ID
-  return allDraftOrders.filter(order => order.customer?.id === formattedCustomerId);
+    for (const order of allDraftOrders) {
+      if (order.customer?.id !== formattedCustomerId) continue;
+
+      const tagQuery = `
+        query {
+          getDraftOrderTags(draftOrderId: "${order.id}") {
+            tag
+          }
+        }
+      `;
+
+      const tagData = await this.appService.fetchData(tagQuery); // Use a helper function in your service to fetch data.
+      const hasPlacedOrRequestedTag = tagData.data?.getDraftOrderTags?.some(
+        (tag) => tag.tag === "Placed" || tag.tag === "ShipRequested",
+      );
+
+      if (!hasPlacedOrRequestedTag) {
+        filteredOrders.push(order);
+      }
+    }
+
+    return filteredOrders;
 }
-
 
 @Query(() => [DraftOrder])
 async draftOrders() {
