@@ -500,7 +500,6 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
               node {
                 id
                 name
-                invoiceUrl
                 createdAt
                 customer {
                   id
@@ -509,11 +508,9 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
                   email
                 }
                 shippingAddress {
-                  address1
                   city
                   province
                   country
-                  zip
                 }
                 lineItems(first: 10) {
                   edges {
@@ -535,9 +532,35 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
     },
   });
 
+  // Map and structure draft orders properly
   const draftOrders = response.data.data.draftOrders.edges.map(edge => edge.node);
-  return draftOrders;
+
+  return draftOrders.map(order => ({
+    id: order.id,
+    name: order.name,
+    createdAt: order.createdAt,
+    customer: order.customer
+      ? {
+          id: order.customer.id,
+          firstName: order.customer.firstName,
+          lastName: order.customer.lastName,
+          email: order.customer.email,
+        }
+      : null,
+    shippingAddress: order.shippingAddress || null,
+    lineItems: order.lineItems.edges.map(item => ({
+      title: item.node.title,
+      quantity: item.node.quantity,
+      variant: item.node.variant
+        ? {
+            title: item.node.variant.title,
+            price: item.node.variant.price,
+          }
+        : null,
+    })),
+  }));
 }
+
 
 
 async getDraftOrders() {
