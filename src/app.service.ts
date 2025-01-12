@@ -520,6 +520,13 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
                       variant {
                         title
                         price
+                        title
+                        metafields(first: 5) {
+                          nodes {
+                            key
+                            value
+                          }
+                        }
                       }
                     }
                   }
@@ -553,8 +560,10 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
       quantity: item.node.quantity,
       variant: item.node.variant
         ? {
-            title: item.node.variant.title,
-            price: item.node.variant.price,
+            id: item.node.variant?.id,
+            title: item.node.variant?.title,
+            price: item.node.variant?.price,
+            metafields: item.node.variant?.metafields?.nodes || [],
           }
         : null,
     })),
@@ -661,12 +670,12 @@ async getDraftOrders() {
       lineItems: order.lineItems.edges.map((item) => ({
         title: item.node.title,
         quantity: item.node.quantity,
-        variant: {
+        variant:  item.node.variant ? {
           id: item.node.variant?.id,
           title: item.node.variant?.title,
           price: item.node.variant?.price,
           metafields: item.node.variant?.metafields?.nodes || [],
-        },
+        } : null,
       })),
       metafields: order.metafields.edges.map((mf) => ({
         id: mf.node.id,
