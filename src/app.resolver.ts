@@ -65,14 +65,21 @@ async getDraftOrdersByCustomerId(
   @Args('includeTags', { type: () => [String], nullable: true }) includeTags?: string[],
   @Args('excludeTags', { type: () => [String], nullable: true }) excludeTags?: string[]
 ): Promise<DraftOrder[]> {
+  // Ensure the customerId is correctly formatted
   const formattedCustomerId = customerId.startsWith('gid://shopify/Customer/')
     ? customerId
     : `gid://shopify/Customer/${customerId}`;
 
+  // Fetch all draft orders
   const allDraftOrders = await this.appService.newGetDraftOrders();
+
+  // Debugging output to ensure data is correct
+  console.log('All Draft Orders:', JSON.stringify(allDraftOrders, null, 2));
 
   // Filter orders by customer ID
   let filteredOrders = allDraftOrders.filter((order) => order.customer?.id === formattedCustomerId);
+
+  console.log('Filtered Orders by Customer:', JSON.stringify(filteredOrders, null, 2));
 
   // Filter by included tags if specified
   if (includeTags?.length) {
@@ -80,6 +87,7 @@ async getDraftOrdersByCustomerId(
     filteredOrders = filteredOrders.filter((order) =>
       (order.tags || []).some((tag) => includeSet.has(tag))
     );
+    console.log('Filtered Orders by Include Tags:', JSON.stringify(filteredOrders, null, 2));
   }
 
   // Filter by excluded tags if specified
@@ -88,10 +96,12 @@ async getDraftOrdersByCustomerId(
     filteredOrders = filteredOrders.filter(
       (order) => !(order.tags || []).some((tag) => excludeSet.has(tag))
     );
+    console.log('Filtered Orders by Exclude Tags:', JSON.stringify(filteredOrders, null, 2));
   }
 
   return filteredOrders;
 }
+
 
 
 @Query(() => [DraftOrder])

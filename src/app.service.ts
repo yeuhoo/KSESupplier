@@ -639,9 +639,11 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
                         variant {
                           title
                           price
-                          metafields {
-                            key
-                            value
+                          metafields(first: 5) {
+                            nodes {
+                              key
+                              value
+                            }
                           }
                         }
                       }
@@ -655,22 +657,22 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
       },
     });
 
+    // Debugging: Ensure draftOrders are correctly fetched
+    console.log('Response from Shopify API:', JSON.stringify(response.data, null, 2));
+
     if (!response.data.data?.draftOrders?.edges) {
-      console.error('Draft orders not found in the API response.');
-      return [];
+      throw new Error('Draft orders not found in the API response.');
     }
 
-    const draftOrders = response.data.data.draftOrders.edges.map((edge) => {
+    // Map response data to your DraftOrder format
+    return response.data.data.draftOrders.edges.map((edge) => {
       const order = edge.node;
-
       return {
         id: order.id,
         name: order.name,
         createdAt: order.createdAt,
-        customer: order.customer
-          ? { id: order.customer.id }
-          : null,
-        tags: order.tags || [], // Ensure `tags` is an array
+        customer: order.customer ? { id: order.customer.id } : null,
+        tags: order.tags || [], // Ensure tags is an array
         shippingAddress: order.shippingAddress
           ? {
               address1: order.shippingAddress.address1,
@@ -687,14 +689,12 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
             ? {
                 title: lineItemEdge.node.variant.title,
                 price: lineItemEdge.node.variant.price,
-                metafields: lineItemEdge.node.variant.metafields?.nodes || [], // Ensure `metafields` is properly accessed
+                metafields: lineItemEdge.node.variant.metafields?.nodes || [],
               }
             : null,
         })) || [],
       };
     });
-
-    return draftOrders;
   } catch (error) {
     console.error('Error fetching draft orders:', error.message || error);
     throw new Error('Failed to fetch draft orders.');
