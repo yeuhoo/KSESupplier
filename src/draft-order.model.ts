@@ -187,4 +187,7 @@ export class DraftOrder {
 
   @Field({ nullable: true })
   invoiceUrl?: string;
+
+  @Field(() => [String], { nullable: true })
+  tags?: string[];
 }

@@ -62,37 +62,35 @@ async isDraftOrderCompleted(@Args('id') id: string): Promise<boolean> {
 @Query(() => [DraftOrder], { nullable: true })
 async getDraftOrdersByCustomerId(
   @Args('customerId', { type: () => String }) customerId: string,
+  @Args('includeTags', { type: () => [String], nullable: true }) includeTags?: string[],
+  @Args('excludeTags', { type: () => [String], nullable: true }) excludeTags?: string[]
 ): Promise<DraftOrder[]> {
   const formattedCustomerId = customerId.startsWith('gid://shopify/Customer/')
     ? customerId
     : `gid://shopify/Customer/${customerId}`;
 
   const allDraftOrders = await this.appService.newGetDraftOrders();
-    const filteredOrders = [];
 
-    for (const order of allDraftOrders) {
-      if (order.customer?.id !== formattedCustomerId) continue;
+  // Filter orders by customer ID
+  let filteredOrders = allDraftOrders.filter((order) => order.customer?.id === formattedCustomerId);
 
-      const tagQuery = `
-        query {
-          getDraftOrderTags(draftOrderId: "${order.id}") {
-            tag
-          }
-        }
-      `;
+  // Filter by included tags if specified
+  if (includeTags && includeTags.length > 0) {
+    filteredOrders = filteredOrders.filter((order) =>
+      order.tags.some((tag) => includeTags.includes(tag))
+    );
+  }
 
-      const tagData = await this.appService.fetchData(tagQuery); // Use a helper function in your service to fetch data.
-      const hasPlacedOrRequestedTag = tagData.data?.getDraftOrderTags?.some(
-        (tag) => tag.tag === "Placed" || tag.tag === "ShipRequested",
-      );
+  // Filter by excluded tags if specified
+  if (excludeTags && excludeTags.length > 0) {
+    filteredOrders = filteredOrders.filter(
+      (order) => !order.tags.some((tag) => excludeTags.includes(tag))
+    );
+  }
 
-      if (!hasPlacedOrRequestedTag) {
-        filteredOrders.push(order);
-      }
-    }
-
-    return filteredOrders;
+  return filteredOrders;
 }
+
 
 @Query(() => [DraftOrder])
 async draftOrders() {

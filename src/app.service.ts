@@ -484,94 +484,6 @@ async createDraftOrder(
   }
 }
 
-async newGetDraftOrders(): Promise<DraftOrder[]> {
-  const response = await axios({
-    url: this.shopifyApiUrl,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': this.shopifyAccessToken,
-    },
-    data: {
-      query: `
-        query {
-          draftOrders(first: 50) {
-            edges {
-              node {
-                id
-                name
-                createdAt
-                customer {
-                  id
-                  firstName
-                  lastName
-                  email
-                }
-                shippingAddress {
-                  city
-                  province
-                  country
-                }
-                lineItems(first: 10) {
-                  edges {
-                    node {
-                      title
-                      quantity
-                      variant {
-                        title
-                        price
-                        title
-                        metafields(first: 5) {
-                          nodes {
-                            key
-                            value
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      `,
-    },
-  });
-
-  // Map and structure draft orders properly
-  const draftOrders = response.data.data.draftOrders.edges.map(edge => edge.node);
-
-  return draftOrders.map(order => ({
-    id: order.id,
-    name: order.name,
-    createdAt: order.createdAt,
-    customer: order.customer
-      ? {
-          id: order.customer.id,
-          firstName: order.customer.firstName,
-          lastName: order.customer.lastName,
-          email: order.customer.email,
-        }
-      : null,
-    shippingAddress: order.shippingAddress || null,
-    lineItems: order.lineItems.edges.map(item => ({
-      title: item.node.title,
-      quantity: item.node.quantity,
-      variant: item.node.variant
-        ? {
-            id: item.node.variant?.id,
-            title: item.node.variant?.title,
-            price: item.node.variant?.price,
-            metafields: item.node.variant?.metafields?.nodes || [],
-          }
-        : null,
-    })),
-  }));
-}
-
-
-
 async getDraftOrders() {
   try {
     const response = await axios({
@@ -689,6 +601,70 @@ async getDraftOrders() {
     throw new Error("Failed to fetch draft orders.");
   }
 }
+
+async newGetDraftOrders(): Promise<DraftOrder[]> {
+  const response = await axios({
+    url: this.shopifyApiUrl,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': this.shopifyAccessToken,
+    },
+    data: {
+      query: `
+        query {
+          draftOrders(first: 50) {
+            edges {
+              node {
+                id
+                name
+                createdAt
+                customer {
+                  id
+                }
+                tags
+                shippingAddress {
+                  address1
+                  city
+                  province
+                  country
+                  zip
+                }
+                lineItems(first: 10) {
+                  edges {
+                    node {
+                      title
+                      quantity
+                      variant {
+                        title
+                        price
+                        metafields {
+                          key
+                          value
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+    },
+  });
+
+  const draftOrders = response.data.data.draftOrders.edges.map((edge) => {
+    const order = edge.node;
+    return {
+      ...order,
+      lineItems: order.lineItems.edges.map((lineItemEdge) => lineItemEdge.node),
+    };
+  });
+
+  return draftOrders;
+}
+
 
 async fetchData(query: string): Promise<any> {
   try {
