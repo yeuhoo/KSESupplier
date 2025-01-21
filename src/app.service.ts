@@ -606,11 +606,9 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
                       node {
                         title
                         quantity
-                        originalUnitPriceSet {
-                          shopMoney {
-                            amount
-                            currencyCode
-                          }
+                        appliedDiscount {
+                          value
+                          valueType
                         }
                         variant {
                           title
@@ -661,8 +659,12 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
         lineItems: order.lineItems?.edges.map((lineItemEdge) => ({
           title: lineItemEdge.node.title,
           quantity: lineItemEdge.node.quantity,
-          originalUnitPrice: lineItemEdge.node.originalUnitPriceSet?.shopMoney?.amount || null,
-          currency: lineItemEdge.node.originalUnitPriceSet?.shopMoney?.currencyCode || null,
+          appliedDiscount: lineItemEdge.node.appliedDiscount
+          ? {
+              value: lineItemEdge.node.appliedDiscount.value,
+              valueType: lineItemEdge.node.appliedDiscount.valueType,
+            }
+          : null,
           variant: lineItemEdge.node.variant
             ? {
                 title: lineItemEdge.node.variant.title,
