@@ -77,6 +77,24 @@ export class Variant {
 }
 
 @ObjectType()
+export class MoneyV2 {
+  @Field()
+  amount: string;
+
+  @Field()
+  currencyCode: string;
+}
+
+@ObjectType()
+export class OriginalUnitPriceSet {
+  @Field(() => MoneyV2)
+  shopMoney: MoneyV2;
+
+  @Field(() => MoneyV2, { nullable: true })
+  presentmentMoney?: MoneyV2;
+}
+
+@ObjectType()
 export class LineItem {
   @Field()
   id: string;
@@ -104,6 +122,9 @@ export class LineItem {
 
   @Field(() => [TaxLine], { nullable: true })
   taxLines?: TaxLine[];
+
+  @Field(() => OriginalUnitPriceSet, { nullable: true })
+  originalUnitPriceSet?: OriginalUnitPriceSet;
 }
 
 @ObjectType()
