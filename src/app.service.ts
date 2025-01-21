@@ -444,7 +444,7 @@ async createDraftOrder(
     },    
     });
 
-    console.log('Full Response:', response.data);
+    console.log('Mutation Payload:', JSON.stringify(response.data.query, null, 2));
     const { draftOrderCreate } = response.data.data;
 
     if (draftOrderCreate.userErrors.length > 0) {
