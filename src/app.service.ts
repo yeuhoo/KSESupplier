@@ -347,12 +347,14 @@ async createDraftOrder(
       ? customerId
       : `gid://shopify/Customer/${customerId}`;
 
-    const reformattedLineItems = lineItems.map(item => ({
-      ...item,
-      variantId: item.variantId.startsWith('gid://shopify/ProductVariant/')
-        ? item.variantId
-        : `gid://shopify/ProductVariant/${item.variantId}`,
+      const reformattedLineItems = lineItems.map(item => ({
+        ...item,
+        variantId: item.variantId.startsWith('gid://shopify/ProductVariant/')
+            ? item.variantId
+            : `gid://shopify/ProductVariant/${item.variantId}`,
+        originalUnitPrice: Math.round(item.originalUnitPrice * 100) // Convert dollars to cents
     }));
+    
 
     // Construct the GraphQL mutation
     const response = await axios({
@@ -364,88 +366,82 @@ async createDraftOrder(
       },
       data: {
         query: `
-          mutation {
-            draftOrderCreate(input: {
-              customerId: "${formattedCustomerId}",
-              lineItems: [
-                ${reformattedLineItems
-                  .map(
-                    item => `
-                  {
-                    variantId: "${item.variantId}",
-                    quantity: ${item.quantity},
-                    originalUnitPrice: ${item.originalUnitPrice || 0},
-                    title: "${item.title || ''}"
-                  }`
-                  )
-                  .join(',')}
-              ],
-              note: "${note}",
-              email: "prince.oncada@gmail.com",
-              shippingAddress: {
-                address1: "${shippingAddress.address1}",
-                city: "${shippingAddress.city}",
-                province: "${shippingAddress.province}",
-                country: "${shippingAddress.country}",
-                zip: "${shippingAddress.zip}"
-              },
-              metafields: [
-                ${metafields
-                  .map(
-                    metafield => `
-                  {
-                    namespace: "${metafield.namespace}",
-                    key: "${metafield.key}",
-                    value: "${metafield.value}",
-                    type: "${metafield.type}"
-                  }`
-                  )
-                  .join(',')}
-              ]
-            }) {
-              draftOrder {
-                id
-                createdAt
-                lineItems(first: 10) {
-                  edges {
-                    node {
-                      title
-                      quantity
-                      price: originalUnitPriceSet {
-                        shopMoney {
-                          amount
-                          currencyCode
+            mutation {
+                draftOrderCreate(input: {
+                    customerId: "${formattedCustomerId}",
+                    lineItems: [
+                        ${reformattedLineItems.map(item => `
+                            {
+                                variantId: "${item.variantId}",
+                                quantity: ${item.quantity},
+                                originalUnitPrice: ${item.originalUnitPrice || 0}, // Already in cents
+                                title: "${item.title || ''}"
+                            }
+                        `).join(',')}
+                    ],
+                    note: "${note}",
+                    email: "prince.oncada@gmail.com",
+                    shippingAddress: {
+                        address1: "${shippingAddress.address1}",
+                        city: "${shippingAddress.city}",
+                        province: "${shippingAddress.province}",
+                        country: "${shippingAddress.country}",
+                        zip: "${shippingAddress.zip}"
+                    },
+                    metafields: [
+                        ${metafields.map(metafield => `
+                            {
+                                namespace: "${metafield.namespace}",
+                                key: "${metafield.key}",
+                                value: "${metafield.value}",
+                                type: "${metafield.type}"
+                            }
+                        `).join(',')}
+                    ]
+                }) {
+                    draftOrder {
+                        id
+                        createdAt
+                        lineItems(first: 10) {
+                            edges {
+                                node {
+                                    title
+                                    quantity
+                                    price: originalUnitPriceSet {
+                                        shopMoney {
+                                            amount
+                                            currencyCode
+                                        }
+                                    }
+                                }
+                            }
                         }
-                      }
+                        metafields(first: 10) {
+                            edges {
+                                node {
+                                    id
+                                    namespace
+                                    key
+                                    value
+                                }
+                            }
+                        }
+                        shippingAddress {
+                            address1
+                            city
+                            province
+                            country
+                            zip
+                        }
                     }
-                  }
-                }
-                metafields(first: 10) {
-                  edges {
-                    node {
-                      id
-                      namespace
-                      key
-                      value
+                    userErrors {
+                        field
+                        message
                     }
-                  }
                 }
-                shippingAddress {
-                  address1
-                  city
-                  province
-                  country
-                  zip
-                }
-              }
-              userErrors {
-                field
-                message
-              }
             }
-          }
         `,
-      },
+    },    
     });
 
     console.log('Full Response:', response.data);
