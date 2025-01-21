@@ -360,7 +360,7 @@ async createDraftOrder(
         ...(hasDiscount
           ? {
               appliedDiscount: {
-                value: item.originalUnitPrice, // Discount value in dollars
+                value: item.originalUnitPrice / 100, // Discount value in dollars
                 valueType: "FIXED_AMOUNT",
                 description: "Custom pricing applied",
               },
