@@ -374,7 +374,7 @@ async createDraftOrder(
                             {
                                 variantId: "${item.variantId}",
                                 quantity: ${item.quantity},
-                                originalUnitPrice: ${item.originalUnitPrice || 0}, // Already in cents
+                                originalUnitPrice: ${item.originalUnitPrice || 0}, 
                                 title: "${item.title || ''}"
                             }
                         `).join(',')}
