@@ -346,36 +346,50 @@ async createDraftOrder(
       ? customerId
       : `gid://shopify/Customer/${customerId}`;
 
-      const reformattedLineItems = lineItems.map(item => ({
+    const reformattedLineItems = lineItems.map((item) => {
+      const hasDiscount =
+        item.originalUnitPrice &&
+        item.originalUnitPrice > 0 &&
+        item.originalUnitPrice !== item.price;
+
+      return {
         ...item,
         variantId: item.variantId.startsWith('gid://shopify/ProductVariant/')
-            ? item.variantId
-            : `gid://shopify/ProductVariant/${item.variantId}`,
-        appliedDiscount: {
-            value: item.originalUnitPrice * 100, 
-            valueType: "FIXED_AMOUNT", 
-            description: "Custom pricing applied",
-        },
-    }));
-    
+          ? item.variantId
+          : `gid://shopify/ProductVariant/${item.variantId}`,
+        ...(hasDiscount
+          ? {
+              appliedDiscount: {
+                value: item.originalUnitPrice / 100, // Discount value in dollars
+                valueType: "FIXED_AMOUNT",
+                description: "Custom pricing applied",
+              },
+            }
+          : {}), // Do not include appliedDiscount if no discount
+      };
+    });
 
     const mutation = `
         mutation {
             draftOrderCreate(input: {
                 customerId: "${formattedCustomerId}",
                 lineItems: [
-                    ${reformattedLineItems.map(item => `
+                    ${reformattedLineItems
+                      .map(
+                        (item) => `
                         {
                             variantId: "${item.variantId}",
                             quantity: ${item.quantity},
-                            appliedDiscount: {
-                                value: ${item.originalUnitPrice / 100}, 
-                                valueType: FIXED_AMOUNT, 
-                                description: "Custom pricing applied"
-                            },
+                            ${item.appliedDiscount ? `
+                                appliedDiscount: {
+                                    value: ${item.appliedDiscount.value},
+                                    valueType: ${item.appliedDiscount.valueType},
+                                    description: "${item.appliedDiscount.description}"
+                                }` : ''}
                             title: "${item.title || ''}"
-                        }
-                    `).join(',')}
+                        }`
+                      )
+                      .join(",")}
                 ],
                 note: "${note}",
                 email: "prince.oncada@gmail.com",
@@ -387,14 +401,17 @@ async createDraftOrder(
                     zip: "${shippingAddress.zip}"
                 },
                 metafields: [
-                    ${metafields.map(metafield => `
+                    ${metafields
+                      .map(
+                        (metafield) => `
                         {
                             namespace: "${metafield.namespace}",
                             key: "${metafield.key}",
                             value: "${metafield.value}",
                             type: "${metafield.type}"
-                        }
-                    `).join(',')}
+                        }`
+                      )
+                      .join(",")}
                 ]
             }) {
                 draftOrder {
@@ -423,19 +440,19 @@ async createDraftOrder(
         }
     `;
 
-    console.log('Mutation Payload:', mutation);
+    console.log("Mutation Payload:", mutation);
 
     const response = await axios({
       url: this.shopifyApiUrl,
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': this.shopifyAccessToken,
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": this.shopifyAccessToken,
       },
       data: { query: mutation },
     });
 
-    console.log('Full Response:', response.data);
+    console.log("Full Response:", response.data);
 
     const { draftOrderCreate } = response.data.data;
 
@@ -446,12 +463,13 @@ async createDraftOrder(
     return draftOrderCreate.draftOrder;
   } catch (error) {
     if (error.response) {
-      console.error('Error Response Data:', error.response.data);
+      console.error("Error Response Data:", error.response.data);
     }
-    console.error('Error creating draft order:', error.message);
-    throw new Error('Failed to create draft order.');
+    console.error("Error creating draft order:", error.message);
+    throw new Error("Failed to create draft order.");
   }
 }
+
 
 
 async getDraftOrders() {
