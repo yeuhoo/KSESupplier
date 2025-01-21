@@ -342,21 +342,80 @@ async createDraftOrder(
   attributes: Record<string, any> = {}
 ) {
   try {
-    // Ensure customerId is properly formatted
     const formattedCustomerId = customerId.startsWith('gid://shopify/Customer/')
       ? customerId
       : `gid://shopify/Customer/${customerId}`;
 
-      const reformattedLineItems = lineItems.map(item => ({
-        ...item,
-        variantId: item.variantId.startsWith('gid://shopify/ProductVariant/')
-            ? item.variantId
-            : `gid://shopify/ProductVariant/${item.variantId}`,
-        originalUnitPrice: Math.round(item.originalUnitPrice * 100) // Convert dollars to cents
+    const reformattedLineItems = lineItems.map(item => ({
+      ...item,
+      variantId: item.variantId.startsWith('gid://shopify/ProductVariant/')
+        ? item.variantId
+        : `gid://shopify/ProductVariant/${item.variantId}`,
+      originalUnitPrice: Math.round(item.originalUnitPrice * 100), // Convert dollars to cents
     }));
-    
 
-    // Construct the GraphQL mutation
+    const mutation = `
+        mutation {
+            draftOrderCreate(input: {
+                customerId: "${formattedCustomerId}",
+                lineItems: [
+                    ${reformattedLineItems.map(item => `
+                        {
+                            variantId: "${item.variantId}",
+                            quantity: ${item.quantity},
+                            originalUnitPrice: ${item.originalUnitPrice || 0}, 
+                            title: "${item.title || ''}"
+                        }
+                    `).join(',')}
+                ],
+                note: "${note}",
+                email: "prince.oncada@gmail.com",
+                shippingAddress: {
+                    address1: "${shippingAddress.address1}",
+                    city: "${shippingAddress.city}",
+                    province: "${shippingAddress.province}",
+                    country: "${shippingAddress.country}",
+                    zip: "${shippingAddress.zip}"
+                },
+                metafields: [
+                    ${metafields.map(metafield => `
+                        {
+                            namespace: "${metafield.namespace}",
+                            key: "${metafield.key}",
+                            value: "${metafield.value}",
+                            type: "${metafield.type}"
+                        }
+                    `).join(',')}
+                ]
+            }) {
+                draftOrder {
+                    id
+                    createdAt
+                    lineItems(first: 10) {
+                        edges {
+                            node {
+                                title
+                                quantity
+                                price: originalUnitPriceSet {
+                                    shopMoney {
+                                        amount
+                                        currencyCode
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                userErrors {
+                    field
+                    message
+                }
+            }
+        }
+    `;
+
+    console.log('Mutation Payload:', mutation);
+
     const response = await axios({
       url: this.shopifyApiUrl,
       method: 'POST',
@@ -364,121 +423,27 @@ async createDraftOrder(
         'Content-Type': 'application/json',
         'X-Shopify-Access-Token': this.shopifyAccessToken,
       },
-      data: {
-        query: `
-            mutation {
-                draftOrderCreate(input: {
-                    customerId: "${formattedCustomerId}",
-                    lineItems: [
-                        ${reformattedLineItems.map(item => `
-                            {
-                                variantId: "${item.variantId}",
-                                quantity: ${item.quantity},
-                                originalUnitPrice: ${item.originalUnitPrice || 0}, 
-                                title: "${item.title || ''}"
-                            }
-                        `).join(',')}
-                    ],
-                    note: "${note}",
-                    email: "prince.oncada@gmail.com",
-                    shippingAddress: {
-                        address1: "${shippingAddress.address1}",
-                        city: "${shippingAddress.city}",
-                        province: "${shippingAddress.province}",
-                        country: "${shippingAddress.country}",
-                        zip: "${shippingAddress.zip}"
-                    },
-                    metafields: [
-                        ${metafields.map(metafield => `
-                            {
-                                namespace: "${metafield.namespace}",
-                                key: "${metafield.key}",
-                                value: "${metafield.value}",
-                                type: "${metafield.type}"
-                            }
-                        `).join(',')}
-                    ]
-                }) {
-                    draftOrder {
-                        id
-                        createdAt
-                        lineItems(first: 10) {
-                            edges {
-                                node {
-                                    title
-                                    quantity
-                                    price: originalUnitPriceSet {
-                                        shopMoney {
-                                            amount
-                                            currencyCode
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        metafields(first: 10) {
-                            edges {
-                                node {
-                                    id
-                                    namespace
-                                    key
-                                    value
-                                }
-                            }
-                        }
-                        shippingAddress {
-                            address1
-                            city
-                            province
-                            country
-                            zip
-                        }
-                    }
-                    userErrors {
-                        field
-                        message
-                    }
-                }
-            }
-        `,
-    },    
+      data: { query: mutation },
     });
 
-    console.log('Mutation Payload:', JSON.stringify(response.data.query, null, 2));
+    console.log('Full Response:', response.data);
+
     const { draftOrderCreate } = response.data.data;
 
     if (draftOrderCreate.userErrors.length > 0) {
       throw new Error(draftOrderCreate.userErrors[0].message);
     }
 
-    const draftOrder = draftOrderCreate.draftOrder;
-
-    return {
-      id: draftOrder.id,
-      createdAt: draftOrder.createdAt,
-      lineItems: draftOrder.lineItems.edges.map(edge => ({
-        title: edge.node.title,
-        quantity: edge.node.quantity,
-        price: edge.node.price.shopMoney.amount,
-        currency: edge.node.price.shopMoney.currencyCode,
-      })),
-      metafields: draftOrder.metafields.edges.map(edge => ({
-        id: edge.node.id,
-        namespace: edge.node.namespace,
-        key: edge.node.key,
-        value: edge.node.value,
-      })),
-      shippingAddress: draftOrder.shippingAddress,
-    };
+    return draftOrderCreate.draftOrder;
   } catch (error) {
     if (error.response) {
-      console.error('Error Status:', error.response.status);
-      console.error('Error Data:', error.response.data);
+      console.error('Error Response Data:', error.response.data);
     }
     console.error('Error creating draft order:', error.message);
     throw new Error('Failed to create draft order.');
   }
 }
+
 
 async getDraftOrders() {
   try {
