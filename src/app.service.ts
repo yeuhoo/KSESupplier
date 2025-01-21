@@ -352,7 +352,7 @@ async createDraftOrder(
             ? item.variantId
             : `gid://shopify/ProductVariant/${item.variantId}`,
         appliedDiscount: {
-            value: item.originalUnitPrice / 100, 
+            value: item.originalUnitPrice, 
             valueType: "FIXED_AMOUNT", 
             description: "Custom pricing applied",
         },
