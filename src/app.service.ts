@@ -346,13 +346,18 @@ async createDraftOrder(
       ? customerId
       : `gid://shopify/Customer/${customerId}`;
 
-    const reformattedLineItems = lineItems.map(item => ({
-      ...item,
-      variantId: item.variantId.startsWith('gid://shopify/ProductVariant/')
-        ? item.variantId
-        : `gid://shopify/ProductVariant/${item.variantId}`,
-      originalUnitPrice: Math.round(item.originalUnitPrice * 100), // Convert dollars to cents
+      const reformattedLineItems = lineItems.map(item => ({
+        ...item,
+        variantId: item.variantId.startsWith('gid://shopify/ProductVariant/')
+            ? item.variantId
+            : `gid://shopify/ProductVariant/${item.variantId}`,
+        appliedDiscount: {
+            value: item.originalUnitPrice / 100, 
+            valueType: "FIXED_AMOUNT", 
+            description: "Custom pricing applied",
+        },
     }));
+    
 
     const mutation = `
         mutation {
@@ -363,7 +368,11 @@ async createDraftOrder(
                         {
                             variantId: "${item.variantId}",
                             quantity: ${item.quantity},
-                            originalUnitPrice: ${item.originalUnitPrice || 0}, 
+                            appliedDiscount: {
+                                value: ${item.originalUnitPrice / 100}, 
+                                valueType: FIXED_AMOUNT, 
+                                description: "Custom pricing applied"
+                            },
                             title: "${item.title || ''}"
                         }
                     `).join(',')}
