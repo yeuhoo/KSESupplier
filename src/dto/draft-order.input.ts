@@ -1,6 +1,7 @@
 import { InputType, Field } from '@nestjs/graphql';
 import { ShippingAddressInput } from './shipping-address.input';
 import { PropertyInput } from './property.input';
+import { Variant } from 'src/draft-order.model';
 @InputType()
 export class LineItemInput {
   @Field()
@@ -8,6 +9,9 @@ export class LineItemInput {
 
   @Field()
   quantity: number;
+
+  @Field(() => Variant, { nullable: true })
+  variant?: Variant;
 
   @Field({ nullable: true })
   originalUnitPrice?: number;
