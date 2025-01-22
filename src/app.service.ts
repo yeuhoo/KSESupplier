@@ -754,6 +754,10 @@ async fetchData(query: string): Promise<any> {
                                     node {
                                         title
                                         quantity
+                                        appliedDiscount {
+                                          value
+                                          valueType
+                                        }
                                         variant {
                                             title
                                             price
@@ -787,6 +791,12 @@ async fetchData(query: string): Promise<any> {
             lineItems: draftOrder.lineItems.edges.map((edge) => ({
                 title: edge.node.title,
                 quantity: edge.node.quantity,
+                appliedDiscount: edge.node.appliedDiscount
+                ? {
+                    value: edge.node.appliedDiscount.value,
+                    valueType: edge.node.appliedDiscount.valueType,
+                  }
+                : null,
                 variant: {
                     title: edge.node.variant?.title,
                     price: edge.node.variant?.price,
