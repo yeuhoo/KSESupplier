@@ -125,6 +125,12 @@ async draftOrders() {
       lineItems: order.lineItems?.map((item) => ({
         title: item.title || "N/A",
         quantity: item.quantity || 0,
+        appliedDiscount: item.appliedDiscount
+        ? {
+            value: item.appliedDiscount.value || 0, 
+            valueType: item.appliedDiscount.valueType || "N/A", 
+          }
+        : null,
         variant: {
           id: item.variant?.id || "N/A",
           title: item.variant?.title || "N/A",

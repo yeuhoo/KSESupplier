@@ -509,7 +509,11 @@ async getDraftOrders() {
                     edges {
                       node {
                         title
-                        quantity                     
+                        quantity    
+                        appliedDiscount {
+                          value
+                          valueType
+                        }                 
                         variant {
                           id
                           price
@@ -570,6 +574,12 @@ async getDraftOrders() {
       lineItems: order.lineItems.edges.map((item) => ({
         title: item.node.title,
         quantity: item.node.quantity,
+        appliedDiscount: item.node.appliedDiscount
+        ? {
+            value: item.node.appliedDiscount.value,
+            valueType: item.node.appliedDiscount.valueType,
+          }
+        : null,
         variant:  item.node.variant ? {
           id: item.node.variant?.id,
           title: item.node.variant?.title,
