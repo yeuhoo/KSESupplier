@@ -331,49 +331,6 @@ async getDraftOrderTags(draftOrderId: string): Promise<DraftOrderTag[]> {
     const defaultVariantId = product.variants.edges[0].node.id;
     return { defaultVariantId };
   }
-
-  async getVariantDetails(productId: string): Promise<{ id: string; title: string; price: number }> {
-    const response = await axios({
-      url: this.shopifyApiUrl,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': this.shopifyAccessToken,
-      },
-      data: {
-        query: `
-          query {
-            product(id: "${productId}") {
-              variants(first: 1) {
-                edges {
-                  node {
-                    id
-                    title
-                    price
-                  }
-                }
-              }
-            }
-          }
-        `,
-      },
-    });
-  
-    const product = response.data.data.product;
-  
-    if (!product || !product.variants || product.variants.edges.length === 0) {
-      throw new Error(`No variants found for product ID: ${productId}`);
-    }
-  
-    const variant = product.variants.edges[0].node;
-  
-    return {
-      id: variant.id,
-      title: variant.title,
-      price: parseFloat(variant.price),
-    };
-  }
-  
   
 //DraftOrders ni prince
 async createDraftOrder(
