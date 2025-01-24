@@ -346,99 +346,101 @@ async createDraftOrder(
       ? customerId
       : `gid://shopify/Customer/${customerId}`;
 
-      const reformattedLineItems = lineItems.map((item) => {
-        const hasDiscount =
-          item.originalUnitPrice &&
-          item.originalUnitPrice > 0 &&
-          item.originalUnitPrice < item.variant?.price;
-      
-        return {
-          ...item,
-          variantId: item.variantId.startsWith('gid://shopify/ProductVariant/')
-            ? item.variantId
-            : `gid://shopify/ProductVariant/${item.variantId}`,
-          ...(hasDiscount
-            ? {
-                appliedDiscount: {
-                  value: (item.variant?.price / 100) - (item.originalUnitPrice / 100), // Calculate the discount amount
-                  valueType: "FIXED_AMOUNT",
-                  description: "Custom pricing applied",
-                },
-              }
-            : {}), // Do not include appliedDiscount if no discount
-        };
-      });
-      
+    const reformattedLineItems = lineItems.map((item) => {
+      const hasDiscount =
+        item.originalUnitPrice &&
+        item.originalUnitPrice > 0 &&
+        item.originalUnitPrice < item.variant?.price; // Ensure a valid discount exists
+
+      return {
+        ...item,
+        variantId: item.variantId.startsWith('gid://shopify/ProductVariant/')
+          ? item.variantId
+          : `gid://shopify/ProductVariant/${item.variantId}`,
+        ...(hasDiscount
+          ? {
+              appliedDiscount: {
+                value: (item.variant?.price / 100) - (item.originalUnitPrice / 100), // Correct discount amount
+                valueType: "FIXED_AMOUNT",
+                description: "Custom pricing applied",
+              },
+            }
+          : {}), // No discount
+      };
+    });
 
     const mutation = `
-      mutation {
-          draftOrderCreate(input: {
-              customerId: "${formattedCustomerId}",
-              lineItems: [
-                  ${reformattedLineItems
-                    .map(
-                      (item) => `{
-                          variantId: "${item.variantId}",
-                          quantity: ${item.quantity},
-                          ${item.appliedDiscount ? `
-                              appliedDiscount: {
-                                  value: ${item.appliedDiscount.value},
-                                  valueType: ${item.appliedDiscount.valueType},
-                                  description: "${item.appliedDiscount.description}"
-                              }` : ''}
-                          title: "${item.title || ''}"
-                      }`
-                    )
-                    .join(",")}
-              ],
-              note: "${note}",
-              email: "prince.oncada@gmail.com",
-              shippingAddress: {
-                  address1: "${shippingAddress.address1}",
-                  city: "${shippingAddress.city}",
-                  province: "${shippingAddress.province}",
-                  country: "${shippingAddress.country}",
-                  zip: "${shippingAddress.zip}"
-              },
-              metafields: [
-                  ${metafields
-                    .map(
-                      (metafield) => `{
-                          namespace: "${metafield.namespace}",
-                          key: "${metafield.key}",
-                          value: "${metafield.value}",
-                          type: "${metafield.type}"
-                      }`
-                    )
-                    .join(",")}
-              ]
-          }) {
-              draftOrder {
-                  id
-                  createdAt
-                  lineItems(first: 10) {
-                      edges {
-                          node {
-                              title
-                              quantity
-                              price: originalUnitPriceSet {
-                                  shopMoney {
-                                      amount
-                                      currencyCode
-                                  }
-                              }
-                          }
-                      }
-                  }
-              }
-              userErrors {
-                  field
-                  message
-              }
-          }
-      }
-  `;
-
+        mutation {
+            draftOrderCreate(input: {
+                customerId: "${formattedCustomerId}",
+                lineItems: [
+                    ${reformattedLineItems
+                      .map(
+                        (item) => `{
+                            variantId: "${item.variantId}",
+                            quantity: ${item.quantity},
+                            ${
+                              item.appliedDiscount
+                                ? `
+                                appliedDiscount: {
+                                    value: ${item.appliedDiscount.value},
+                                    valueType: ${item.appliedDiscount.valueType},
+                                    description: "${item.appliedDiscount.description}"
+                                }`
+                                : ""
+                            }
+                            title: "${item.title || ''}"
+                        }`
+                      )
+                      .join(",")}
+                ],
+                note: "${note}",
+                email: "prince.oncada@gmail.com",
+                shippingAddress: {
+                    address1: "${shippingAddress.address1}",
+                    city: "${shippingAddress.city}",
+                    province: "${shippingAddress.province}",
+                    country: "${shippingAddress.country}",
+                    zip: "${shippingAddress.zip}"
+                },
+                metafields: [
+                    ${metafields
+                      .map(
+                        (metafield) => `{
+                            namespace: "${metafield.namespace}",
+                            key: "${metafield.key}",
+                            value: "${metafield.value}",
+                            type: "${metafield.type}"
+                        }`
+                      )
+                      .join(",")}
+                ]
+            }) {
+                draftOrder {
+                    id
+                    createdAt
+                    lineItems(first: 10) {
+                        edges {
+                            node {
+                                title
+                                quantity
+                                price: originalUnitPriceSet {
+                                    shopMoney {
+                                        amount
+                                        currencyCode
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                userErrors {
+                    field
+                    message
+                }
+            }
+        }
+    `;
 
     console.log("Mutation Payload:", mutation);
 
