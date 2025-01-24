@@ -1004,7 +1004,7 @@ async fetchData(query: string): Promise<any> {
   }
   
 
-  async updateDraftOrderAddress(draftOrderId: string, shippingAddress: ShippingAddressInput) {
+  async updateDraftOrderAddress(draftOrderId: string, shippingAddress: ShippingAddressInput, email:string) {
     // Ensure the draftOrderId has the correct format
     const formattedDraftOrderId = draftOrderId.startsWith('gid://shopify/DraftOrder/')
       ? draftOrderId // Use as-is if it's already prefixed
@@ -1013,6 +1013,7 @@ async fetchData(query: string): Promise<any> {
     const mutation = `
       mutation {
         draftOrderUpdate(id: "${formattedDraftOrderId}", input: {
+          email: "${email}",
           shippingAddress: {
             address1: "${shippingAddress.address1}",
             city: "${shippingAddress.city}",

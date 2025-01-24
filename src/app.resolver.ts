@@ -39,10 +39,11 @@ async getDraftOrder(@Args('id', { type: () => String }) id: string): Promise<Dra
 async requestShippingFee(
   @Args('userId') userId: string,
   @Args('draftOrderId') draftOrderId: string,
+  @Args('email') email: string,
   @Args('shippingAddress', { type: () => ShippingAddressInput }) shippingAddress: ShippingAddressInput
 ): Promise<boolean> {
   try {
-    await this.appService.updateDraftOrderAddress(draftOrderId, shippingAddress);
+    await this.appService.updateDraftOrderAddress(draftOrderId, shippingAddress,email);
 
     await this.appService.sendShippingRequestEmail(userId, draftOrderId);
 
