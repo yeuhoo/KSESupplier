@@ -346,28 +346,29 @@ async createDraftOrder(
       ? customerId
       : `gid://shopify/Customer/${customerId}`;
 
-    const reformattedLineItems = lineItems.map((item) => {
-      const hasDiscount =
-        item.originalUnitPrice &&
-        item.originalUnitPrice > 0 &&
-        item.originalUnitPrice !== item.variant?.price;
-
-      return {
-        ...item,
-        variantId: item.variantId.startsWith('gid://shopify/ProductVariant/')
-          ? item.variantId
-          : `gid://shopify/ProductVariant/${item.variantId}`,
-        ...(hasDiscount
-          ? {
-              appliedDiscount: {
-                value: (item.variant?.price || 0) - item.originalUnitPrice / 100, 
-                valueType: "FIXED_AMOUNT",
-                description: "Custom pricing applied",
-              },
-            }
-          : {}), // Do not include appliedDiscount if no discount
-      };
-    });
+      const reformattedLineItems = lineItems.map((item) => {
+        const hasDiscount =
+          item.originalUnitPrice &&
+          item.originalUnitPrice > 0 &&
+          item.originalUnitPrice < item.variant?.price;
+      
+        return {
+          ...item,
+          variantId: item.variantId.startsWith('gid://shopify/ProductVariant/')
+            ? item.variantId
+            : `gid://shopify/ProductVariant/${item.variantId}`,
+          ...(hasDiscount
+            ? {
+                appliedDiscount: {
+                  value: (item.variant?.price / 100) - (item.originalUnitPrice / 100), // Calculate the discount amount
+                  valueType: "FIXED_AMOUNT",
+                  description: "Custom pricing applied",
+                },
+              }
+            : {}), // Do not include appliedDiscount if no discount
+        };
+      });
+      
 
     const mutation = `
       mutation {
