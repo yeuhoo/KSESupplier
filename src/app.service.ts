@@ -339,6 +339,7 @@ async createDraftOrder(
   shippingAddress: ShippingAddressInput,
   metafields: MetafieldInput[],
   note: string,
+  email: string,
   attributes: Record<string, any> = {}
 ) {
   try {
@@ -392,7 +393,7 @@ async createDraftOrder(
                       .join(",")}
                 ],
                 note: "${note}",
-                email: "prince.oncada@gmail.com",
+                email: "${email}",
                 shippingAddress: {
                     address1: "${shippingAddress.address1}",
                     city: "${shippingAddress.city}",

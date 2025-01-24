@@ -207,7 +207,8 @@ async createDraftOrder(
   @Args('lineItems', { type: () => [LineItemInput] }) lineItems: LineItemInput[],
   @Args('shippingAddress', { type: () => ShippingAddressInput }) shippingAddress: ShippingAddressInput,
   @Args('metafields', { type: () => [MetafieldInput], nullable: true }) metafields: MetafieldInput[] = [],
-  @Args('note', { type: () => String, nullable: true }) note: string = ''
+  @Args('note', { type: () => String, nullable: true }) note: string = '',
+  @Args('email', { type: () => String, nullable: true }) email: string
 ): Promise<DraftOrder> {
   try {
     const draftOrder = await this.appService.createDraftOrder(
@@ -215,7 +216,8 @@ async createDraftOrder(
       lineItems,
       shippingAddress,
       metafields,
-      note
+      note,
+      email
     );
 
     if (!draftOrder) {
