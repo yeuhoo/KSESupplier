@@ -287,11 +287,12 @@ async createDraftOrder(
   @Mutation(() => Boolean)
   async completeDraftOrder(
     @Args('id') draftOrderId: string,
+    @Args('email', { type: () => String }) email: string,
     @Args('shippingAddress', { type: () => ShippingAddressInput }) shippingAddress: ShippingAddressInput
   ): Promise<boolean> {
     try {
       // First, update the draft order's shipping address
-      await this.appService.updateDraftOrderAddress(draftOrderId, shippingAddress);
+      await this.appService.updateDraftOrderAddress(draftOrderId, shippingAddress,email);
 
       // Then, complete the draft order
       const result = await this.appService.completeDraftOrder(draftOrderId);
