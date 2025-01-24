@@ -35,26 +35,6 @@ async getDraftOrder(@Args('id', { type: () => String }) id: string): Promise<Dra
   return this.appService.getDraftOrderById(id);
 }
 
-@Query(() => Variant, { nullable: true })
-async getVariantDetails(
-  @Args('productId', { type: () => String }) productId: string
-): Promise<Variant | null> {
-  try {
-    const variant = await this.appService.getVariantDetails(productId);
-
-    return {
-      id: variant.id,
-      title: variant.title,
-      price: variant.price,
-    };
-  } catch (error) {
-    console.error('Error in getVariantDetails query:', error);
-    throw new Error(`Failed to fetch variant details: ${error.message}`);
-  }
-}
-
-
-
 @Mutation(() => Boolean)
 async requestShippingFee(
   @Args('userId') userId: string,

@@ -19,6 +19,9 @@ export class LineItemInput {
   @Field()
   variantId: string;
 
+  @Field({ nullable: true })
+  originalPrice ?: number;
+
   @Field()
   quantity: number;
 

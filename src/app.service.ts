@@ -350,7 +350,7 @@ async createDraftOrder(
       const hasDiscount =
         item.originalUnitPrice &&
         item.originalUnitPrice > 0 &&
-        item.originalUnitPrice !== item.variant?.price;
+        item.originalUnitPrice !== item.originalPrice;
 
       return {
         ...item,
@@ -360,7 +360,7 @@ async createDraftOrder(
         ...(hasDiscount
           ? {
               appliedDiscount: {
-                value: item.originalUnitPrice / 100, // Discount value in dollars
+                value: ((item.originalPrice - item.originalUnitPrice) / 100).toFixed(2), // Discount value in dollars
                 valueType: "FIXED_AMOUNT",
                 description: "Custom pricing applied",
               },
