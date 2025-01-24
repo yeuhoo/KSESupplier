@@ -2,7 +2,7 @@ import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { AppService } from './app.service';
 import { Product } from './product.model';
 import { User } from './user.model';
-import { DraftOrder, LineItem } from './draft-order.model';
+import { DraftOrder, LineItem, Variant } from './draft-order.model';
 import { MetafieldInput } from './dto/metafield.input';
 import { ShippingAddressInput } from './dto/shipping-address.input';
 import { DraftOrderInput, LineItemInput } from './dto/draft-order.input';
@@ -34,6 +34,25 @@ async user(@Args('id') id: string) {
 async getDraftOrder(@Args('id', { type: () => String }) id: string): Promise<DraftOrder> {
   return this.appService.getDraftOrderById(id);
 }
+
+@Query(() => Variant, { nullable: true })
+async getVariantDetails(
+  @Args('productId', { type: () => String }) productId: string
+): Promise<Variant | null> {
+  try {
+    const variant = await this.appService.getVariantDetails(productId);
+
+    return {
+      id: variant.id,
+      title: variant.title,
+      price: variant.price,
+    };
+  } catch (error) {
+    console.error('Error in getVariantDetails query:', error);
+    throw new Error(`Failed to fetch variant details: ${error.message}`);
+  }
+}
+
 
 
 @Mutation(() => Boolean)

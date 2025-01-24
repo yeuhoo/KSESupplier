@@ -331,6 +331,49 @@ async getDraftOrderTags(draftOrderId: string): Promise<DraftOrderTag[]> {
     const defaultVariantId = product.variants.edges[0].node.id;
     return { defaultVariantId };
   }
+
+  async getVariantDetails(productId: string): Promise<{ id: string; title: string; price: number }> {
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: {
+        query: `
+          query {
+            product(id: "${productId}") {
+              variants(first: 1) {
+                edges {
+                  node {
+                    id
+                    title
+                    price
+                  }
+                }
+              }
+            }
+          }
+        `,
+      },
+    });
+  
+    const product = response.data.data.product;
+  
+    if (!product || !product.variants || product.variants.edges.length === 0) {
+      throw new Error(`No variants found for product ID: ${productId}`);
+    }
+  
+    const variant = product.variants.edges[0].node;
+  
+    return {
+      id: variant.id,
+      title: variant.title,
+      price: parseFloat(variant.price),
+    };
+  }
+  
   
 //DraftOrders ni prince
 async createDraftOrder(
@@ -350,7 +393,7 @@ async createDraftOrder(
       const hasDiscount =
         item.originalUnitPrice &&
         item.originalUnitPrice > 0 &&
-        item.originalUnitPrice < item.variant?.price; // Ensure a valid discount exists
+        item.originalUnitPrice !== item.variant?.price;
 
       return {
         ...item,
@@ -360,12 +403,12 @@ async createDraftOrder(
         ...(hasDiscount
           ? {
               appliedDiscount: {
-                value: (item.variant?.price / 100) - (item.originalUnitPrice / 100), // Correct discount amount
+                value: item.originalUnitPrice / 100, // Discount value in dollars
                 valueType: "FIXED_AMOUNT",
                 description: "Custom pricing applied",
               },
             }
-          : {}), // No discount
+          : {}), // Do not include appliedDiscount if no discount
       };
     });
 
@@ -376,19 +419,16 @@ async createDraftOrder(
                 lineItems: [
                     ${reformattedLineItems
                       .map(
-                        (item) => `{
+                        (item) => `
+                        {
                             variantId: "${item.variantId}",
                             quantity: ${item.quantity},
-                            ${
-                              item.appliedDiscount
-                                ? `
+                            ${item.appliedDiscount ? `
                                 appliedDiscount: {
                                     value: ${item.appliedDiscount.value},
                                     valueType: ${item.appliedDiscount.valueType},
                                     description: "${item.appliedDiscount.description}"
-                                }`
-                                : ""
-                            }
+                                }` : ''}
                             title: "${item.title || ''}"
                         }`
                       )
@@ -406,7 +446,8 @@ async createDraftOrder(
                 metafields: [
                     ${metafields
                       .map(
-                        (metafield) => `{
+                        (metafield) => `
+                        {
                             namespace: "${metafield.namespace}",
                             key: "${metafield.key}",
                             value: "${metafield.value}",
