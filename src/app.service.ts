@@ -393,7 +393,7 @@ async createDraftOrder(
                       .join(",")}
                 ],
                 note: "${note}",
-                email: "${email}",
+                email: "",
                 shippingAddress: {
                     address1: "${shippingAddress.address1}",
                     city: "${shippingAddress.city}",
