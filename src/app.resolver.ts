@@ -102,6 +102,32 @@ async getDraftOrdersByCustomerId(
   return filteredOrders;
 }
 
+  @Query(() => [DraftOrder], { nullable: true })
+async getAllDraftOrdersWithTags(
+  @Args('includeTags', { type: () => [String], nullable: true }) includeTags?: string[],
+  @Args('excludeTags', { type: () => [String], nullable: true }) excludeTags?: string[]
+): Promise<DraftOrder[]> {
+  const allDraftOrders = await this.appService.newGetDraftOrders();
+
+  let filteredOrders = allDraftOrders;
+
+  if (includeTags?.length) {
+    const includeSet = new Set(includeTags);
+    filteredOrders = filteredOrders.filter((order) =>
+      (order.tags || []).some((tag) => includeSet.has(tag))
+    );
+  }
+
+  if (excludeTags?.length) {
+    const excludeSet = new Set(excludeTags);
+    filteredOrders = filteredOrders.filter(
+      (order) => !(order.tags || []).some((tag) => excludeSet.has(tag))
+    );
+  }
+
+  return filteredOrders;
+}
+
 
 
 @Query(() => [DraftOrder])
