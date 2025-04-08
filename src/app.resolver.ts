@@ -59,6 +59,12 @@ async isDraftOrderCompleted(@Args('id') id: string): Promise<boolean> {
   return this.appService.isDraftOrderCompleted(id);
 }
 
+  @Query(() => [CustomerCompany])
+async getCustomersWithCompanies(): Promise<{ id: string; company: string }[]> {
+  return this.appService.getCustomersWithCompanies();
+}
+
+
 @Query(() => [DraftOrder], { nullable: true })
 async getDraftOrdersByCustomerId(
   @Args('customerId', { type: () => String }) customerId: string,
