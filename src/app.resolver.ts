@@ -8,6 +8,7 @@ import { ShippingAddressInput } from './dto/shipping-address.input';
 import { DraftOrderInput, LineItemInput } from './dto/draft-order.input';
 import { PropertyInput } from './dto/property.input';
 import { DraftOrderTag } from './dto/draft-order-tag.model';
+import { CustomerCompany } from './dto/customer-company.dto';
 import { title } from 'process';
 
 @Resolver()
