@@ -65,6 +65,34 @@ async getCustomersWithCompanies(): Promise<{ id: string; company: string }[]> {
   return this.appService.getCustomersWithCompanies();
 }
 
+    @Query(() => [DraftOrder])
+  async getCompanyDraftOrders(
+    @Args('customerId', { type: () => String }) customerId: string,
+    @Args('includeTags', { type: () => [String], nullable: true }) includeTags?: string[]
+  ): Promise<DraftOrder[]> {
+    const formattedCustomerId = customerId.startsWith('gid://shopify/Customer/')
+      ? customerId
+      : `gid://shopify/Customer/${customerId}`;
+
+    // Fetch all draft orders with optional tag filter
+    const allDraftOrders = await this.appService.getAllDraftOrders(includeTags);
+
+    // Fetch all customers and their companies
+    const allCustomers = await this.appService.getCustomersWithCompanies();
+    const customerMap = Object.fromEntries(
+      allCustomers.map((cust) => [cust.id, cust.company?.trim() || 'N/A'])
+    );
+
+    const currentCompany = customerMap[formattedCustomerId];
+    if (!currentCompany || currentCompany === 'N/A') return [];
+
+    // Filter orders to include only those under the same company
+    return allDraftOrders.filter((order) => {
+      const customerId = order.customer?.id;
+      const customerCompany = customerMap[customerId];
+      return customerCompany === currentCompany;
+    });
+  }
 
 @Query(() => [DraftOrder], { nullable: true })
 async getDraftOrdersByCustomerId(
