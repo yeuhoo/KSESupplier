@@ -176,6 +176,40 @@ async getDraftOrderTags(draftOrderId: string): Promise<DraftOrderTag[]> {
     }
   }
 
+  async getCustomersWithCompanies(): Promise<{ id: string; company: string }[]> {
+  const response = await axios({
+    url: this.shopifyApiUrl,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': this.shopifyAccessToken,
+    },
+    data: {
+      query: `
+        query {
+          customers(first: 100) {
+            edges {
+              node {
+                id
+                defaultAddress {
+                  company
+                }
+              }
+            }
+          }
+        }
+      `,
+    },
+  });
+
+  const rawCustomers = response.data.data.customers.edges;
+  return rawCustomers.map(({ node }) => ({
+    id: node.id,
+    company: node.defaultAddress?.company?.trim() || "N/A",
+  }));
+}
+
+
 
   async getUsers() {
     const response = await axios({
