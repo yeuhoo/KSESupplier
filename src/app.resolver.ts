@@ -65,34 +65,56 @@ async getCustomersWithCompanies(): Promise<{ id: string; company: string }[]> {
   return this.appService.getCustomersWithCompanies();
 }
 
-    @Query(() => [DraftOrder])
-  async getCompanyDraftOrders(
-    @Args('customerId', { type: () => String }) customerId: string,
-    @Args('includeTags', { type: () => [String], nullable: true }) includeTags?: string[]
-  ): Promise<DraftOrder[]> {
-    const formattedCustomerId = customerId.startsWith('gid://shopify/Customer/')
-      ? customerId
-      : `gid://shopify/Customer/${customerId}`;
+   @Query(() => [DraftOrder], { nullable: true })
+async getCompanyDraftOrders(
+  @Args('customerId', { type: () => String }) customerId: string,
+  @Args('includeTags', { type: () => [String], nullable: true }) includeTags?: string[],
+  @Args('excludeTags', { type: () => [String], nullable: true }) excludeTags?: string[]
+): Promise<DraftOrder[]> {
+  const formattedCustomerId = customerId.startsWith('gid://shopify/Customer/')
+    ? customerId
+    : `gid://shopify/Customer/${customerId}`;
 
-    // Fetch all draft orders with optional tag filter
-    const allDraftOrders = await this.appService.getAllDraftOrders(includeTags);
+  // Step 1: Fetch all draft orders
+  const allDraftOrders = await this.appService.newGetDraftOrders();
 
-    // Fetch all customers and their companies
-    const allCustomers = await this.appService.getCustomersWithCompanies();
-    const customerMap = Object.fromEntries(
-      allCustomers.map((cust) => [cust.id, cust.company?.trim() || 'N/A'])
+  // Step 2: Apply include/exclude tags
+  let filteredOrders = allDraftOrders;
+
+  if (includeTags?.length) {
+    const includeSet = new Set(includeTags);
+    filteredOrders = filteredOrders.filter(order =>
+      (order.tags || []).some(tag => includeSet.has(tag))
     );
-
-    const currentCompany = customerMap[formattedCustomerId];
-    if (!currentCompany || currentCompany === 'N/A') return [];
-
-    // Filter orders to include only those under the same company
-    return allDraftOrders.filter((order) => {
-      const customerId = order.customer?.id;
-      const customerCompany = customerMap[customerId];
-      return customerCompany === currentCompany;
-    });
   }
+
+  if (excludeTags?.length) {
+    const excludeSet = new Set(excludeTags);
+    filteredOrders = filteredOrders.filter(order =>
+      !(order.tags || []).some(tag => excludeSet.has(tag))
+    );
+  }
+
+  // Step 3: Get customer-company mapping
+  const allCustomers = await this.appService.getCustomersWithCompanies();
+  const customerCompanyMap = Object.fromEntries(
+    allCustomers.map(customer => [
+      customer.id,
+      customer.company?.trim() || "N/A"
+    ])
+  );
+
+  const currentCompany = customerCompanyMap[formattedCustomerId];
+  if (!currentCompany || currentCompany === "N/A") return [];
+
+  // Step 4: Return only orders from customers in the same company
+  return filteredOrders.filter(order => {
+    const customerId = order.customer?.id;
+    const orderCompany = customerCompanyMap[customerId];
+    return orderCompany === currentCompany;
+  });
+}
+
 
 @Query(() => [DraftOrder], { nullable: true })
 async getDraftOrdersByCustomerId(
