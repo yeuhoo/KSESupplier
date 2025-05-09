@@ -1339,7 +1339,7 @@ async fetchData(query: string): Promise<any> {
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
-      to: 'it@hafstaff.com',
+      to: 'orders@kse.com',
       subject: `Request Shipping Fee: ${numericDraftOrderId}`,
       text: `
         User ID: ${userId}
@@ -1372,7 +1372,7 @@ async fetchData(query: string): Promise<any> {
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
-      to: 'it@hafstaff.com',
+      to: 'orders@kse.com',
       subject: `Request Shipping Fee: ${draftOrderId}`,
       text: `
         User ID: ${userId}
