@@ -1337,19 +1337,25 @@ async fetchData(query: string): Promise<any> {
 
     const numericDraftOrderId = draftOrderId.replace('gid://shopify/DraftOrder/', '');
 
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: 'orders@ksesuppliers.com',
-      subject: `Request Shipping Fee: ${numericDraftOrderId}`,
-      text: `
-        User ID: ${userId}
-        Draft Order ID: ${numericDraftOrderId}
-        It would be great if you click this link!
-        https://admin.shopify.com/store/kse-suppliers/draft_orders/${numericDraftOrderId}
-        
-        User requests for shipping fee for this draft order.
-      `,
-    };
+const mailOptions = {
+  from: process.env.EMAIL_USER,
+  to: 'orders@ksesuppliers.com',
+  subject: `Request Shipping Fee: ${numericDraftOrderId}`,
+  html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+      <h2 style="color: #951828;">Shipping Fee Request</h2>
+      <p><strong>User ID:</strong> ${userId}</p>
+      <p><strong>Draft Order ID:</strong> ${numericDraftOrderId}</p>
+      <p>User has requested a shipping fee for this draft order.</p>
+      <p style="margin-top: 20px;">
+        <a href="https://admin.shopify.com/store/kse-suppliers/draft_orders/${numericDraftOrderId}" 
+           style="display: inline-block; padding: 10px 15px; background-color: #951828; color: white; text-decoration: none; border-radius: 4px;">
+          View Draft Order
+        </a>
+      </p>
+    </div>
+  `
+};
 
     try {
       await transporter.sendMail(mailOptions);
@@ -1370,19 +1376,25 @@ async fetchData(query: string): Promise<any> {
       },
     });
 
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: 'orders@ksesuppliers.com',
-      subject: `Request Shipping Fee: ${draftOrderId}`,
-      text: `
-        User ID: ${userId}
-        Draft Order ID: ${draftOrderId}
-        It would be great if you click this link!
-        https://admin.shopify.com/store/kse-suppliers/draft_orders/${draftOrderId}
-        
-        User requests for placing this draft order.
-      `,
-    };
+const mailOptions = {
+  from: process.env.EMAIL_USER,
+  to: 'orders@ksesuppliers.com',
+  subject: `Request Shipping Fee: ${draftOrderId}`,
+  html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; background-color: #f9f9f9;">
+      <h2 style="color: #951828;">Place Order Request</h2>
+      <p><strong>User ID:</strong> ${userId}</p>
+      <p><strong>Draft Order ID:</strong> ${draftOrderId}</p>
+      <p>The user has requested to place this draft order.</p>
+      <p style="margin-top: 20px;">
+        <a href="https://admin.shopify.com/store/kse-suppliers/draft_orders/${draftOrderId}" 
+           style="display: inline-block; padding: 10px 15px; background-color: #951828; color: white; text-decoration: none; border-radius: 4px;">
+          View Draft Order
+        </a>
+      </p>
+    </div>
+  `
+};
 
     try {
       await transporter.sendMail(mailOptions);
