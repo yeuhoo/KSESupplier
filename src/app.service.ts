@@ -1135,13 +1135,7 @@ async fetchData(query: string): Promise<any> {
     }
   }
   
-async updateDraftOrder(
-  id: string, 
-  customerId: string, 
-  lineItems: LineItemInput[], 
-  metafields: any[], 
-  shippingAddress: ShippingAddressInput
-) {
+async updateDraftOrder(id: string, customerId: string, lineItems: LineItemInput[], metafields: any[], shippingAddress: ShippingAddressInput) {
   try {
     const lineItemsWithVariants = lineItems.map(item => ({
       variantId: item.variantId,
@@ -1161,17 +1155,6 @@ async updateDraftOrder(
             draftOrderUpdate(id: $id, input: $input) {
               draftOrder {
                 id
-                invoiceUrl
-                shippingAddress {
-                  address1
-                  city
-                  province
-                  country
-                  zip
-                  firstName
-                  lastName
-                  company
-                }
               }
               userErrors {
                 field
@@ -1216,6 +1199,7 @@ async updateDraftOrder(
     throw new Error('Failed to update draft order.');
   }
 }
+
   
  async deleteDraftOrder(id: string) {
   try {
