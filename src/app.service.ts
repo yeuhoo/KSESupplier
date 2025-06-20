@@ -1135,93 +1135,87 @@ async fetchData(query: string): Promise<any> {
     }
   }
   
-  async updateDraftOrder(id: string, customerId: string, lineItems: LineItemInput[], metafields: any[], shippingAddress: ShippingAddressInput) {
-    try {
-      const lineItemsWithVariants = lineItems.map(item => ({
-        variantId: item.variantId,
-        quantity: item.quantity,
-      }));
-  
-      const response = await axios({
-        url: this.shopifyApiUrl,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': this.shopifyAccessToken,  
-        },
-        data: {
-          query: `
-            mutation updateDraftOrder($id: ID!, $input: DraftOrderInput!) {
-              draftOrderUpdate(id: $id, input: $input) {
-                draftOrder {
-                  id
-                  invoiceUrl
-                  lineItems(first: 10) {
-                    edges {
-                      node {
-                        title
-                        quantity
-                      }
-                    }
-                  }
-                  metafields(first: 10) {
-                    edges {
-                      node {
-                        id
-                        namespace
-                        key
-                        value
-                      }
-                    }
-                  }
-                  shippingAddress {
-                    address1
-                    city
-                    province
-                    country
-                    zip
-                  }
-                }
-                userErrors {
-                  field
-                  message
+async updateDraftOrder(
+  id: string, 
+  customerId: string, 
+  lineItems: LineItemInput[], 
+  metafields: any[], 
+  shippingAddress: ShippingAddressInput
+) {
+  try {
+    const lineItemsWithVariants = lineItems.map(item => ({
+      variantId: item.variantId,
+      quantity: item.quantity,
+    }));
+
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,  
+      },
+      data: {
+        query: `
+          mutation updateDraftOrder($id: ID!, $input: DraftOrderInput!) {
+            draftOrderUpdate(id: $id, input: $input) {
+              draftOrder {
+                id
+                invoiceUrl
+                shippingAddress {
+                  address1
+                  city
+                  province
+                  country
+                  zip
+                  firstName
+                  lastName
+                  company
                 }
               }
+              userErrors {
+                field
+                message
+              }
             }
-          `,
-          variables: {
-            id: `gid://shopify/DraftOrder/${id}`,
-            input: {
-              customerId: `gid://shopify/Customer/${customerId}`,
-              lineItems: lineItemsWithVariants,
-              metafields: metafields,
-              shippingAddress: {
-                address1: shippingAddress.address1,
-                city: shippingAddress.city,
-                province: shippingAddress.province,
-                country: shippingAddress.country,
-                zip: shippingAddress.zip,
-              },
+          }
+        `,
+        variables: {
+          id: `gid://shopify/DraftOrder/${id}`,
+          input: {
+            customerId: `gid://shopify/Customer/${customerId}`,
+            lineItems: lineItemsWithVariants,
+            metafields: metafields,
+            shippingAddress: {
+              address1: shippingAddress.address1,
+              city: shippingAddress.city,
+              province: shippingAddress.province,
+              country: shippingAddress.country,
+              zip: shippingAddress.zip,
+              firstName: shippingAddress.firstName || "",
+              lastName: shippingAddress.lastName || "",
+              company: shippingAddress.company || ""
             },
           },
         },
-      });
-  
-      const { draftOrderUpdate } = response.data.data;
-  
-      if (draftOrderUpdate.userErrors.length > 0) {
-        throw new Error(draftOrderUpdate.userErrors[0].message);
-      }
-  
-      return draftOrderUpdate.draftOrder;
-    } catch (error) {
-      if (error.response) {
-        console.error('Error Status:', error.response.status);
-        console.error('Error Data:', error.response.data);
-      }
-      throw new Error('Failed to update draft order.');
+      },
+    });
+
+    const { draftOrderUpdate } = response.data.data;
+
+    if (draftOrderUpdate.userErrors.length > 0) {
+      throw new Error(draftOrderUpdate.userErrors[0].message);
     }
+
+    return draftOrderUpdate.draftOrder;
+  } catch (error) {
+    if (error.response) {
+      console.error('Error Status:', error.response.status);
+      console.error('Error Data:', error.response.data);
+    }
+    throw new Error('Failed to update draft order.');
   }
+}
   
  async deleteDraftOrder(id: string) {
   try {
