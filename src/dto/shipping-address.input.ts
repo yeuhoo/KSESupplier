@@ -26,7 +26,4 @@ export class ShippingAddressInput {
 
   @Field({ nullable: true })
   lastName?: string;
-
-  @Field({ nullable: true })
-  company?: string;
 }
