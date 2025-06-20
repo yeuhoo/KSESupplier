@@ -390,17 +390,25 @@ async createDraftOrder(
       ? customerId
       : `gid://shopify/Customer/${customerId}`;
 
-    // 🟢 Extract email from note
-    let extractedEmail = "fatima@ksesuppliers.com";
-    const emailMatch = note.match(/email:\s*([^\s,]+)/i);
+    // Extract PO Number from note (assuming note has: PO: 12345)
+    let poNumber = '';
+    const poMatch = note.match(/PO:\s*(.+)/i);
+    if (poMatch) {
+      poNumber = poMatch[1].trim();
+    } else {
+      poNumber = `DRAFT-${Date.now()}`; // fallback
+    }
+
+    // Extract Email from note (assuming note has: email: user@example.com)
+    let extractedEmail = email;
+    const emailMatch = note.match(/email:\s*([\w.-]+@[\w.-]+\.\w+)/i);
     if (emailMatch) {
       extractedEmail = emailMatch[1].trim();
     }
-    console.log("Extracted Email:", extractedEmail);
 
-    // Escape values
-    const safeNote = this.escapeGraphQLString(note);
     const safeEmail = this.escapeGraphQLString(extractedEmail);
+    const safeNote = this.escapeGraphQLString(note);
+    const safeName = this.escapeGraphQLString(poNumber);
 
     const reformattedLineItems = lineItems.map((item) => {
       const hasDiscount =
@@ -429,22 +437,24 @@ async createDraftOrder(
       mutation {
         draftOrderCreate(input: {
           customerId: "${formattedCustomerId}",
-          email: "${safeEmail}",
+          name: "${safeName}",
           note: "${safeNote}",
+          email: "${safeEmail}",
           lineItems: [
-            ${reformattedLineItems.map((item) => `
-              {
-                variantId: "${item.variantId}",
-                quantity: ${item.quantity},
-                ${item.appliedDiscount ? `
-                  appliedDiscount: {
-                    value: ${item.appliedDiscount.value},
-                    valueType: ${item.appliedDiscount.valueType},
-                    description: "${this.escapeGraphQLString(item.appliedDiscount.description)}"
-                  }` : ''}
-                title: "${this.escapeGraphQLString(item.title || '')}"
-              }
-            `).join(",")}
+            ${reformattedLineItems
+              .map(
+                (item) => `{
+                  variantId: "${item.variantId}",
+                  quantity: ${item.quantity},
+                  ${item.appliedDiscount ? `
+                    appliedDiscount: {
+                      value: ${item.appliedDiscount.value},
+                      valueType: ${item.appliedDiscount.valueType},
+                      description: "${item.appliedDiscount.description}"
+                    }` : ''}
+                  title: "${this.escapeGraphQLString(item.title || '')}"
+                }`
+              ).join(",")}
           ],
           shippingAddress: {
             address1: "${this.escapeGraphQLString(shippingAddress.address1)}",
@@ -454,18 +464,19 @@ async createDraftOrder(
             zip: "${this.escapeGraphQLString(shippingAddress.zip)}"
           },
           metafields: [
-            ${metafields.map((metafield) => `
-              {
-                namespace: "${this.escapeGraphQLString(metafield.namespace)}",
-                key: "${this.escapeGraphQLString(metafield.key)}",
-                value: "${this.escapeGraphQLString(metafield.value)}",
-                type: "${this.escapeGraphQLString(metafield.type)}"
-              }
-            `).join(",")}
+            ${metafields.map((metafield) => `{
+              namespace: "${this.escapeGraphQLString(metafield.namespace)}",
+              key: "${this.escapeGraphQLString(metafield.key)}",
+              value: "${this.escapeGraphQLString(metafield.value)}",
+              type: "${this.escapeGraphQLString(metafield.type)}"
+            }`).join(",")}
           ]
         }) {
           draftOrder {
             id
+            name
+            createdAt
+            invoiceUrl
           }
           userErrors {
             field
@@ -474,6 +485,8 @@ async createDraftOrder(
         }
       }
     `;
+
+    console.log("Mutation Payload:", mutation);
 
     const response = await axios({
       url: this.shopifyApiUrl,
@@ -485,13 +498,15 @@ async createDraftOrder(
       data: { query: mutation },
     });
 
-    const { draftOrderCreate } = response.data.data;
+    console.log("Full Response:", response.data);
+    const result = response.data.data.draftOrderCreate;
 
-    if (draftOrderCreate.userErrors.length > 0) {
-      throw new Error(draftOrderCreate.userErrors[0].message);
+    if (result.userErrors.length > 0) {
+      throw new Error(result.userErrors[0].message);
     }
 
-    return draftOrderCreate.draftOrder;
+    return result.draftOrder;
+
   } catch (error) {
     if (error.response) {
       console.error("Error Response Data:", error.response.data);
@@ -500,6 +515,7 @@ async createDraftOrder(
     throw new Error("Failed to create draft order.");
   }
 }
+
 
 
 async sendDraftOrderInvoice(draftOrderId) {
