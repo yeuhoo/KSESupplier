@@ -19,6 +19,15 @@ export class AppService {
     this.shopifyApiUrl = this.configService.get<string>('SHOPIFY_API_URL');
     this.shopifyAccessToken = this.configService.get<string>('SHOPIFY_ACCESS_TOKEN');
   }
+  escapeGraphQLString(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/\\/g, '\\\\')   // escape backslashes
+    .replace(/"/g, '\\"')     // escape double quotes
+    .replace(/\n/g, '\\n')    // escape newlines
+    .replace(/\r/g, '')       // remove carriage returns if any
+    .trim();
+}
 
   async createDraftOrderTag(draftOrderId: string, tag: string): Promise<boolean> {
     try {
@@ -373,7 +382,7 @@ async createDraftOrder(
   shippingAddress: ShippingAddressInput,
   metafields: MetafieldInput[],
   note: string,
-  email: string,  // keep this argument for now but we will extract email from note
+  email: string,
   attributes: Record<string, any> = {}
 ) {
   try {
@@ -381,13 +390,17 @@ async createDraftOrder(
       ? customerId
       : `gid://shopify/Customer/${customerId}`;
 
-    // 🟢 Extract email from note string
-    let extractedEmail = "fatima@ksesuppliers.com"; // default fallback email
+    // 🟢 Extract email from note
+    let extractedEmail = "fatima@ksesuppliers.com";
     const emailMatch = note.match(/email:\s*([^\s,]+)/i);
     if (emailMatch) {
       extractedEmail = emailMatch[1].trim();
     }
     console.log("Extracted Email:", extractedEmail);
+
+    // Escape values
+    const safeNote = this.escapeGraphQLString(note);
+    const safeEmail = this.escapeGraphQLString(extractedEmail);
 
     const reformattedLineItems = lineItems.map((item) => {
       const hasDiscount =
@@ -416,8 +429,8 @@ async createDraftOrder(
       mutation {
         draftOrderCreate(input: {
           customerId: "${formattedCustomerId}",
-          email: "${extractedEmail}",
-          note: "${note}",
+          email: "${safeEmail}",
+          note: "${safeNote}",
           lineItems: [
             ${reformattedLineItems.map((item) => `
               {
@@ -427,47 +440,32 @@ async createDraftOrder(
                   appliedDiscount: {
                     value: ${item.appliedDiscount.value},
                     valueType: ${item.appliedDiscount.valueType},
-                    description: "${item.appliedDiscount.description}"
+                    description: "${this.escapeGraphQLString(item.appliedDiscount.description)}"
                   }` : ''}
-                title: "${item.title || ''}"
+                title: "${this.escapeGraphQLString(item.title || '')}"
               }
             `).join(",")}
           ],
           shippingAddress: {
-            address1: "${shippingAddress.address1}",
-            city: "${shippingAddress.city}",
-            province: "${shippingAddress.province}",
-            country: "${shippingAddress.country}",
-            zip: "${shippingAddress.zip}"
+            address1: "${this.escapeGraphQLString(shippingAddress.address1)}",
+            city: "${this.escapeGraphQLString(shippingAddress.city)}",
+            province: "${this.escapeGraphQLString(shippingAddress.province)}",
+            country: "${this.escapeGraphQLString(shippingAddress.country)}",
+            zip: "${this.escapeGraphQLString(shippingAddress.zip)}"
           },
           metafields: [
             ${metafields.map((metafield) => `
               {
-                namespace: "${metafield.namespace}",
-                key: "${metafield.key}",
-                value: "${metafield.value}",
-                type: "${metafield.type}"
+                namespace: "${this.escapeGraphQLString(metafield.namespace)}",
+                key: "${this.escapeGraphQLString(metafield.key)}",
+                value: "${this.escapeGraphQLString(metafield.value)}",
+                type: "${this.escapeGraphQLString(metafield.type)}"
               }
             `).join(",")}
           ]
         }) {
           draftOrder {
             id
-            createdAt
-            lineItems(first: 10) {
-              edges {
-                node {
-                  title
-                  quantity
-                  price: originalUnitPriceSet {
-                    shopMoney {
-                      amount
-                      currencyCode
-                    }
-                  }
-                }
-              }
-            }
           }
           userErrors {
             field
@@ -502,6 +500,7 @@ async createDraftOrder(
     throw new Error("Failed to create draft order.");
   }
 }
+
 
 async sendDraftOrderInvoice(draftOrderId) {
   try {
