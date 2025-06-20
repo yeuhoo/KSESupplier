@@ -297,8 +297,7 @@ async createDraftOrder(
   @Args('lineItems', { type: () => [LineItemInput] }) lineItems: LineItemInput[],
   @Args('shippingAddress', { type: () => ShippingAddressInput }) shippingAddress: ShippingAddressInput,
   @Args('metafields', { type: () => [MetafieldInput], nullable: true }) metafields: MetafieldInput[] = [],
-  @Args('note', { type: () => String, nullable: true }) note: string = '',
-  @Args('email', { type: () => String, nullable: true }) email: string
+  @Args('note', { type: () => String, nullable: true }) note: string = ''
 ): Promise<DraftOrder> {
   try {
     const draftOrder = await this.appService.createDraftOrder(
@@ -307,7 +306,7 @@ async createDraftOrder(
       shippingAddress,
       metafields,
       note,
-      email
+      ''  // ⚠️ You can remove the email argument now, since you're handling it inside service
     );
 
     if (!draftOrder) {
