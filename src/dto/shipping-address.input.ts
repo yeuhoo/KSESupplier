@@ -20,4 +20,13 @@ export class ShippingAddressInput {
   @Field()
   zip: string;
   address2: any;
+
+  @Field({ nullable: true })
+  firstName?: string;
+
+  @Field({ nullable: true })
+  lastName?: string;
+
+  @Field({ nullable: true })
+  company?: string;
 }
