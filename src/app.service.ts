@@ -373,13 +373,21 @@ async createDraftOrder(
   shippingAddress: ShippingAddressInput,
   metafields: MetafieldInput[],
   note: string,
-  email: string,
+  email: string,  // keep this argument for now but we will extract email from note
   attributes: Record<string, any> = {}
 ) {
   try {
     const formattedCustomerId = customerId.startsWith('gid://shopify/Customer/')
       ? customerId
       : `gid://shopify/Customer/${customerId}`;
+
+    // 🟢 Extract email from note string
+    let extractedEmail = "fatima@ksesuppliers.com"; // default fallback email
+    const emailMatch = note.match(/email:\s*([^\s,]+)/i);
+    if (emailMatch) {
+      extractedEmail = emailMatch[1].trim();
+    }
+    console.log("Extracted Email:", extractedEmail);
 
     const reformattedLineItems = lineItems.map((item) => {
       const hasDiscount =
@@ -395,87 +403,79 @@ async createDraftOrder(
         ...(hasDiscount
           ? {
               appliedDiscount: {
-                value: ((item.originalPrice - item.originalUnitPrice) / 100).toFixed(2), // Discount value in dollars
+                value: ((item.originalPrice - item.originalUnitPrice) / 100).toFixed(2),
                 valueType: "FIXED_AMOUNT",
                 description: "Custom pricing applied",
               },
             }
-          : {}), // Do not include appliedDiscount if no discount
+          : {}),
       };
     });
 
     const mutation = `
-        mutation {
-            draftOrderCreate(input: {
-                customerId: "${formattedCustomerId}",
-                lineItems: [
-                    ${reformattedLineItems
-                      .map(
-                        (item) => `
-                        {
-                            variantId: "${item.variantId}",
-                            quantity: ${item.quantity},
-                            ${item.appliedDiscount ? `
-                                appliedDiscount: {
-                                    value: ${item.appliedDiscount.value},
-                                    valueType: ${item.appliedDiscount.valueType},
-                                    description: "${item.appliedDiscount.description}"
-                                }` : ''}
-                            title: "${item.title || ''}"
-                        }`
-                      )
-                      .join(",")}
-                ],
-                note: "${note}",
-                email: "",
-                shippingAddress: {
-                    address1: "${shippingAddress.address1}",
-                    city: "${shippingAddress.city}",
-                    province: "${shippingAddress.province}",
-                    country: "${shippingAddress.country}",
-                    zip: "${shippingAddress.zip}"
-                },
-                metafields: [
-                    ${metafields
-                      .map(
-                        (metafield) => `
-                        {
-                            namespace: "${metafield.namespace}",
-                            key: "${metafield.key}",
-                            value: "${metafield.value}",
-                            type: "${metafield.type}"
-                        }`
-                      )
-                      .join(",")}
-                ]
-            }) {
-                draftOrder {
-                    id
-                    createdAt
-                    lineItems(first: 10) {
-                        edges {
-                            node {
-                                title
-                                quantity
-                                price: originalUnitPriceSet {
-                                    shopMoney {
-                                        amount
-                                        currencyCode
-                                    }
-                                }
-                            }
-                        }
+      mutation {
+        draftOrderCreate(input: {
+          customerId: "${formattedCustomerId}",
+          email: "${extractedEmail}",
+          note: "${note}",
+          lineItems: [
+            ${reformattedLineItems.map((item) => `
+              {
+                variantId: "${item.variantId}",
+                quantity: ${item.quantity},
+                ${item.appliedDiscount ? `
+                  appliedDiscount: {
+                    value: ${item.appliedDiscount.value},
+                    valueType: ${item.appliedDiscount.valueType},
+                    description: "${item.appliedDiscount.description}"
+                  }` : ''}
+                title: "${item.title || ''}"
+              }
+            `).join(",")}
+          ],
+          shippingAddress: {
+            address1: "${shippingAddress.address1}",
+            city: "${shippingAddress.city}",
+            province: "${shippingAddress.province}",
+            country: "${shippingAddress.country}",
+            zip: "${shippingAddress.zip}"
+          },
+          metafields: [
+            ${metafields.map((metafield) => `
+              {
+                namespace: "${metafield.namespace}",
+                key: "${metafield.key}",
+                value: "${metafield.value}",
+                type: "${metafield.type}"
+              }
+            `).join(",")}
+          ]
+        }) {
+          draftOrder {
+            id
+            createdAt
+            lineItems(first: 10) {
+              edges {
+                node {
+                  title
+                  quantity
+                  price: originalUnitPriceSet {
+                    shopMoney {
+                      amount
+                      currencyCode
                     }
+                  }
                 }
-                userErrors {
-                    field
-                    message
-                }
+              }
             }
+          }
+          userErrors {
+            field
+            message
+          }
         }
+      }
     `;
-
-    console.log("Mutation Payload:", mutation);
 
     const response = await axios({
       url: this.shopifyApiUrl,
@@ -486,8 +486,6 @@ async createDraftOrder(
       },
       data: { query: mutation },
     });
-
-    console.log("Full Response:", response.data);
 
     const { draftOrderCreate } = response.data.data;
 
