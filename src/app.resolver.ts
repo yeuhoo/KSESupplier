@@ -64,6 +64,12 @@ async isDraftOrderCompleted(@Args('id') id: string): Promise<boolean> {
 async getCustomersWithCompanies(): Promise<{ id: string; company: string }[]> {
   return this.appService.getCustomersWithCompanies();
 }
+@Mutation(() => Boolean)
+async sendDraftOrderInvoice(
+  @Args('draftOrderId') draftOrderId: string
+): Promise<boolean> {
+  return this.appService.sendDraftOrderInvoice(draftOrderId);
+}
 
    @Query(() => [DraftOrder], { nullable: true })
 async getCompanyDraftOrders(
