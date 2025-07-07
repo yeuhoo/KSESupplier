@@ -27,7 +27,290 @@ export class AppService {
     .replace(/\n/g, '\\n')    // escape newlines
     .replace(/\r/g, '')       // remove carriage returns if any
     .trim();
-}
+  }
+
+  async getCompanyPriceLevel() {
+    try {
+      return await axios({
+        url: this.shopifyApiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+        data: {query:
+          `
+            query {
+              shop {
+                metafield(namespace: "pricing", key: "price_level_per_company") {
+                  value
+                }
+              }
+            }
+          `
+        },
+      }).then(response => {
+        return JSON.parse(response.data.data.shop.metafield.value || '{}');
+      })
+    } catch (error) {
+      console.error('Error fetching company price level:', error.message);
+      throw new Error('Failed to fetch company price level.');
+    }
+  }
+
+  async deleteCompany(company: string) {
+    try {
+      let mapping = {};
+      let shopId = null;
+      await axios({
+        url: this.shopifyApiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+        data: {query:
+          `
+            query {
+              shop {
+                id
+                metafield(namespace: "pricing", key: "price_level_per_company") {
+                  id
+                  value
+                }
+              }
+            }
+          `
+        },
+      }).then(response => {
+        shopId = response.data.data.shop.id; // Get Shop ID for mutation
+
+        // Get existing company-priceLevel pairings and replace. Add new company and priceLevel if not existing.
+        const metafield = response.data.data.shop.metafield;
+        if (metafield && metafield.value) {
+          mapping = JSON.parse(metafield.value);
+        }
+        if (company in mapping) {
+          delete mapping[company];
+        }
+      }).catch(error => {
+        console.error('Error fetching shop metafield:', error.message);
+      });
+
+      const mutation = `
+        mutation {
+          metafieldsSet(metafields: [{
+            namespace: "pricing",
+            key: "price_level_per_company",
+            value: "${this.escapeGraphQLString(JSON.stringify(mapping))}",
+            type: "json",
+            ownerId: "${shopId}"
+          }]) {
+            metafields {
+              id
+              namespace
+              key
+              value
+            }
+          }
+        }
+      `;
+
+      return await axios({
+        url: this.shopifyApiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+        data: { query: mutation },
+      }).then(response => {
+        console.log('chek response for setCompanyPriceLevel:', response.data);
+        return response.data.data.metafieldsSet.metafields;
+      });
+    } catch (error) {
+      console.error('Error deleting company:', error.message);
+      throw new Error('Failed to delete company.');
+    }
+  }
+
+  async setCompanyPriceLevel(
+    company: string,
+    priceLevel?: string
+  ) {
+    try {
+      priceLevel = priceLevel || ""; // Default to no tag if not provided
+
+      let mapping = {};
+      let shopId = null;
+
+      // Check if metafield exists and get Shop ID
+      await axios({
+        url: this.shopifyApiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+        data: {query:
+          `
+            query {
+              shop {
+                id
+                metafield(namespace: "pricing", key: "price_level_per_company") {
+                  id
+                  value
+                }
+              }
+            }
+          `
+        },
+      }).then(response => {
+        shopId = response.data.data.shop.id; // Get Shop ID for mutation
+
+        // Get existing company-priceLevel pairings and replace. Add new company and priceLevel if not existing.
+        const metafield = response.data.data.shop.metafield;
+        if (metafield && metafield.value) {
+          mapping = JSON.parse(metafield.value);
+        }
+        mapping[company] = priceLevel;
+      }).catch(error => {
+        console.error('Error fetching shop metafield:', error.message);
+      });
+
+      const mutation = `
+        mutation {
+          metafieldsSet(metafields: [{
+            namespace: "pricing",
+            key: "price_level_per_company",
+            value: "${this.escapeGraphQLString(JSON.stringify(mapping))}",
+            type: "json",
+            ownerId: "${shopId}"
+          }]) {
+            metafields {
+              id
+              namespace
+              key
+              value
+            }
+          }
+        }
+      `;
+
+      return await axios({
+        url: this.shopifyApiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+        data: { query: mutation },
+      }).then(response => {
+        console.log('chek response for setCompanyPriceLevel:', response.data);
+        return response.data.data.metafieldsSet.metafields;
+      });
+    } catch (error) {
+      console.error('Error setting company price level:', error.message);
+      throw new Error('Failed to set company price level.');
+    }
+  }
+
+  // Edit customer company name in default address
+  async updateCustomerCompany(id: string, company: string) { // chek new line
+    try {
+      const customerIdFormatted = id.startsWith('gid://shopify/Customer/')
+        ? id // Use as-is if already prefixed
+        : `gid://shopify/Customer/${id}`; // Add prefix if missing
+
+      const priceLevels = ["price1", "price2", "price6", "price7", "price8", "test"];
+
+      // Get default Address ID and existing customer tags
+      const data = await axios({
+        url: this.shopifyApiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+        data: {
+          query: `
+            query {
+              customer(id: "${customerIdFormatted}") {
+                tags
+                defaultAddress {
+                  id
+                }
+              }
+            }
+          `,
+        },
+      }).then(response => {
+        return {"defaultAddress" : response.data.data.customer.defaultAddress.id, "tags": response.data.data.customer.tags};
+      })
+
+      const currentTags = data.tags || [];
+      const filteredTags = currentTags.filter(tag => !priceLevels.includes(tag.trim())); // Keep non-price level tags
+      
+      // Get price level for company from getCompanyPriceLevel
+      const companyPriceLevels = await this.getCompanyPriceLevel();
+      for (const [companyName, priceLevel] of Object.entries(companyPriceLevels)) {
+        if (companyName === company) {
+          if (priceLevel && !filteredTags.includes(priceLevel)) {
+            filteredTags.push(priceLevel);
+          }
+        }
+      }
+      // if (!filteredTags.includes(priceLevel)) {
+      //   filteredTags.push(priceLevel);
+      // }
+      // tags: [${filteredTags.map(tag => `"${tag.trim()}"`).join(', ')}],
+
+      const mutation = `
+        mutation {
+          customerUpdate(input: {
+            id: "${id}",
+            tags: [${filteredTags.map(tag => `"${tag.trim()}"`).join(', ')}],
+            addresses: {
+              id: "${data.defaultAddress}",
+              company: "${company}"
+            },
+          }) {
+            customer {
+              id
+              firstName
+              lastName
+              tags
+              defaultAddress {
+                company
+              }
+            }
+          }
+        }
+      `;
+
+      const customerCompany = await axios({
+        url: this.shopifyApiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+        data: { query: mutation },
+      }).then(res => {
+        return {
+          id: res.data.data.customerUpdate.customer.id,
+          firstName: res.data.data.customerUpdate.customer.firstName,
+          lastName: res.data.data.customerUpdate.customer.lastName,
+          company: res.data.data.customerUpdate.customer.defaultAddress.company,
+          priceLevel: filteredTags.find(tag => priceLevels.includes(tag.trim())) || null
+        }
+      });
+      return customerCompany;
+    } catch (error) {
+      console.error('Error editing customer company:', error.message);
+      throw new Error('Failed to edit customer company.' + error.message);
+    }
+  }
 
   async createDraftOrderTag(draftOrderId: string, tag: string): Promise<boolean> {
     try {
@@ -185,38 +468,55 @@ async getDraftOrderTags(draftOrderId: string): Promise<DraftOrderTag[]> {
     }
   }
 
-  async getCustomersWithCompanies(): Promise<{ id: string; company: string }[]> {
-  const response = await axios({
-    url: this.shopifyApiUrl,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': this.shopifyAccessToken,
-    },
-    data: {
-      query: `
-        query {
-          customers(first: 100) {
-            edges {
-              node {
-                id
-                defaultAddress {
-                  company
+  async getCustomersWithCompanies(): Promise<{ id: string; firstName?: string; lastName?: string; company: string }[]> {
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: {
+        query: `
+          query {
+            customers(first: 100) {
+              edges {
+                node {
+                  id
+                  firstName
+                  lastName
+                  defaultAddress {
+                    company
+                  }
                 }
               }
             }
           }
-        }
-      `,
-    },
-  });
-
-  const rawCustomers = response.data.data.customers.edges;
-  return rawCustomers.map(({ node }) => ({
-    id: node.id,
-    company: node.defaultAddress?.company?.trim() || "N/A",
-  }));
-}
+        `,
+      },
+    })
+    .then(response => {
+      console.log('chek Raw Customers Data:', response);
+      const rawCustomers = response.data.data.customers.edges;
+      return rawCustomers.map(({ node }) => ({
+        id: node.id,
+        firstName: node.firstName?.trim() || "N/A",
+        lastName: node.lastName?.trim() || "N/A",
+        company: node.defaultAddress?.company?.trim() || "N/A",
+      }));
+    })
+    .catch(error => {
+      console.log('Error fetching customers:', error.message);
+      return [{
+        id: "n/a",
+        first_name: "n/a",
+        last_name: "n/a",
+        company: "n/a",
+      }];
+    });
+    
+    return response;
+  }
 
 
 
@@ -231,7 +531,7 @@ async getDraftOrderTags(draftOrderId: string): Promise<DraftOrderTag[]> {
       data: {
         query: `
           {
-            customers(first: 10) {
+            customers(first: 100) {
               edges {
                 node {
                   id
@@ -241,6 +541,7 @@ async getDraftOrderTags(draftOrderId: string): Promise<DraftOrderTag[]> {
                   addresses {
                     address1
                     address2
+                    company
                     city
                     province
                     country

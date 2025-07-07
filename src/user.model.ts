@@ -12,6 +12,9 @@ export class Address {
   city: string;
 
   @Field({ nullable: true })
+  company: string;
+
+  @Field({ nullable: true })
   province: string;
 
   @Field({ nullable: true })

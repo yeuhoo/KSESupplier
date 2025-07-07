@@ -12,6 +12,7 @@ type Address {
   address1: String
   address2: String
   city: String
+  company: String
   province: String
   country: String
   zip: String
@@ -29,6 +30,7 @@ type ShippingAddress {
   address1: String!
   city: String!
   province: String!
+  company: String
   country: String!
   zip: String!
 }
@@ -63,16 +65,31 @@ type Variant {
   metafields: [Metafield!]
 }
 
+type AppliedDiscount {
+  value: Float!
+  valueType: String!
+}
+
 type LineItem {
   id: String!
   title: String!
   name: String
   quantity: Float!
   variant: Variant
+  appliedDiscount: AppliedDiscount
   sku: String
   vendor: String
   requiresShipping: Boolean
   taxLines: [TaxLine!]
+}
+
+type Company {
+  id: String
+  name: String
+}
+
+type CompanyContactProfiles {
+  company: Company
 }
 
 type Customer {
@@ -81,6 +98,7 @@ type Customer {
   firstName: String
   lastName: String
   tags: [String!]
+  companyContactProfiles: [CompanyContactProfiles!]
 }
 
 type DraftOrder {
@@ -98,6 +116,7 @@ type DraftOrder {
   taxLines: [TaxLine!]
   customer: Customer
   invoiceUrl: String
+  tags: [String!]
 }
 
 type DraftOrderTag {
@@ -106,24 +125,45 @@ type DraftOrderTag {
   tag: String!
 }
 
+type CustomerCompany {
+  id: String!
+  firstName: String
+  lastName: String
+  company: String!
+  priceLevel: String!
+}
+
 type Query {
   products: [Product!]!
   users: [User!]!
   user(id: String!): User
   getDraftOrder(id: String!): DraftOrder
   isDraftOrderCompleted(id: String!): Boolean!
+  getCustomersWithCompanies: [CustomerCompany!]!
+  getDraftOrdersByCustomerId(customerId: String!, includeTags: [String!], excludeTags: [String!]): [DraftOrder!]
+  getAllDraftOrdersWithTags(includeTags: [String!], excludeTags: [String!]): [DraftOrder!]
   draftOrders: [DraftOrder!]!
   checkForShippingFee(draftOrderId: String!): String
+  getCompanyPriceLevel: JSONObject
   getDraftOrderTags(draftOrderId: String!): [DraftOrderTag!]!
 }
 
+"""
+The `JSONObject` scalar type represents JSON objects as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSONObject
+
 type Mutation {
-  requestShippingFee(userId: String!, draftOrderId: String!, shippingAddress: ShippingAddressInput!): Boolean!
+  requestShippingFee(userId: String!, draftOrderId: String!, email: String!, shippingAddress: ShippingAddressInput!): Boolean!
+  sendDraftOrderInvoice(draftOrderId: String!): Boolean!
+  deleteCompany(company: String!): Metafield!
+  setCompanyPriceLevel(company: String!, priceLevel: String): Metafield!
+  updateCustomerCompany(id: String!, company: String!): CustomerCompany!
   calculateDraftOrderById(draftOrderId: String!): DraftOrder!
   createDraftOrder(customerId: String!, lineItems: [LineItemInput!]!, shippingAddress: ShippingAddressInput!, metafields: [MetafieldInput!], note: String): DraftOrder!
   updateDraftOrder(id: String!, customerId: String!, lineItems: [LineItemInput!]!, shippingAddress: ShippingAddressInput, metafields: [MetafieldInput!]): DraftOrder!
   deleteDraftOrder(id: String!): String!
-  completeDraftOrder(id: String!, shippingAddress: ShippingAddressInput!): Boolean!
+  completeDraftOrder(id: String!, email: String!, shippingAddress: ShippingAddressInput!): Boolean!
   createDraftOrderTag(draftOrderId: String!, tag: String!, userId: String!): Boolean!
   updateDraftOrderTag(draftOrderId: String!, tag: String!): DraftOrderTag!
 }
@@ -132,16 +172,27 @@ input ShippingAddressInput {
   address1: String!
   city: String!
   province: String!
+  company: String
   country: String!
   zip: String!
+  firstName: String
+  lastName: String
 }
 
 input LineItemInput {
   variantId: String!
+  originalPrice: Float
   quantity: Float!
+  variant: VariantInput
   originalUnitPrice: Float
   title: String
   properties: [PropertyInput!]
+}
+
+input VariantInput {
+  id: String
+  title: String
+  price: Float
 }
 
 input PropertyInput {
@@ -150,8 +201,9 @@ input PropertyInput {
 }
 
 input MetafieldInput {
+  id: String
   namespace: String!
   key: String!
-  value: String!
-  type: String!
+  value: String
+  type: String
 }
