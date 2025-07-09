@@ -58,9 +58,13 @@ export class AppService {
     }
   }
 async addNotifyStaffMetafield(draftOrderId: string): Promise<boolean> {
+  const store = this.configService.get<string>('SHOPIFY_STORE');
+  const token = this.configService.get<string>('SHOPIFY_ADMIN_TOKEN');
+  const url = `https://${store}/admin/api/2024-01/draft_orders/${draftOrderId}/metafields.json`;
+
   try {
     await axios.post(
-      `https://${this.configService.get<string>('SHOPIFY_STORE')}/admin/api/2024-01/draft_orders/${draftOrderId}/metafields.json`,
+      url,
       {
         metafield: {
           namespace: "custom",
@@ -71,7 +75,7 @@ async addNotifyStaffMetafield(draftOrderId: string): Promise<boolean> {
       },
       {
         headers: {
-          "X-Shopify-Access-Token": this.configService.get<string>('SHOPIFY_ADMIN_TOKEN'),
+          "X-Shopify-Access-Token": token,
           "Content-Type": "application/json"
         }
       }
@@ -82,6 +86,7 @@ async addNotifyStaffMetafield(draftOrderId: string): Promise<boolean> {
     return false;
   }
 }
+
 
 async updateDraftOrderNote(draftOrderId: string, jobCode: string): Promise<boolean> {
   const draftOrderIdFormatted = draftOrderId.startsWith('gid://shopify/DraftOrder/')
