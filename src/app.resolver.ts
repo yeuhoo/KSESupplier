@@ -69,30 +69,9 @@ export class AppResolver {
 async addNotifyStaffMetafield(
   @Args('draftOrderId') draftOrderId: string
 ): Promise<boolean> {
-  try {
-    await axios.post(
-      `https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/draft_orders/${draftOrderId}/metafields.json`,
-      {
-        metafield: {
-          namespace: "custom",
-          key: "notify_staff",
-          value: "true",
-          type: "single_line_text_field"
-        }
-      },
-      {
-        headers: {
-          "X-Shopify-Access-Token": process.env.SHOPIFY_ADMIN_TOKEN,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-    return true;
-  } catch (error) {
-    console.error("Metafield Error:", error.response?.data || error);
-    return false;
-  }
+  return this.appService.addNotifyStaffMetafield(draftOrderId);
 }
+
 
   @Query(() => Boolean)
   async isDraftOrderCompleted(@Args('id') id: string): Promise<boolean> {
