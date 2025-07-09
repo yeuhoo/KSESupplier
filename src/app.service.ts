@@ -1773,31 +1773,33 @@ async sendShippingRequestEmail(userId: string, draftOrderId: string) {
   });
 
   const numericDraftOrderId = draftOrderId.replace('gid://shopify/DraftOrder/', '');
-
-  // Fetch order data from Shopify
   const draftOrder = await this.getDraftOrderDetails(draftOrderId);
 
   const customer = draftOrder?.customer || {};
   const lineItems = draftOrder?.line_items || [];
   const tags = draftOrder?.tags || "";
   const poTag = tags.split(',').find(tag => tag.includes('PO:')) || '';
+  const currency = draftOrder.currency || '';
 
-  // Build product table
+  const address = customer.default_address || {};
+
   const productListHTML = lineItems.map(item => {
     const title = item.title || '';
     const quantity = item.quantity || 1;
-    const price = item.price || '0.00';
-    const image = item.variant?.image?.src || ''; // Optional, depending on API
+    const priceEach = parseFloat(item.applied_discount?.amount || item.price || '0.00');
+    const totalPrice = priceEach * quantity;
 
     return `
       <tr>
-        <td><img src="${image}" alt="${title}" width="60" style="border-radius: 4px;" /></td>
-        <td>${title}</td>
-        <td>x${quantity}</td>
-        <td>${price} ${draftOrder.currency || ''}</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${title}</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">x${quantity}</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${priceEach.toFixed(2)} ${currency} each</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${totalPrice.toFixed(2)} ${currency} total</td>
       </tr>
     `;
   }).join("");
+
+  const orderTotal = parseFloat(draftOrder.total_price || '0.00');
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
@@ -1809,22 +1811,32 @@ async sendShippingRequestEmail(userId: string, draftOrderId: string) {
 
         <p><strong>User ID:</strong> ${userId}</p>
         <p><strong>Customer:</strong> ${customer.first_name || ''} ${customer.last_name || ''} (${customer.email || ''})</p>
-        <p><strong>Company:</strong> ${customer.default_address?.company || 'N/A'}</p>
-        <p><strong>PO:</strong> ${poTag || 'None'}</p>
+        <p><strong>Company:</strong> ${address.company || 'N/A'}</p>
+        <p><strong>PO Number:</strong> ${poTag || 'None'}</p>
 
-        <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+        <h4 style="margin-top: 20px;">Shipping Address:</h4>
+        <p>
+          ${address.address1 || ''}<br>
+          ${address.city || ''}, ${address.province || ''}<br>
+          ${address.country || ''} ${address.zip || ''}
+        </p>
+
+        <h4 style="margin-top: 20px;">Order Details:</h4>
+        <table style="width: 100%; border-collapse: collapse;">
           <thead style="background-color: #eee;">
             <tr>
-              <th>Image</th>
-              <th>Product</th>
-              <th>Qty</th>
-              <th>Price</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">Product</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">Qty</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">Price Each</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">Line Total</th>
             </tr>
           </thead>
           <tbody>${productListHTML}</tbody>
         </table>
 
-        <p style="margin-top: 20px;">
+        <h3 style="text-align: right; margin-top: 20px;">Order Total: ${orderTotal.toFixed(2)} ${currency}</h3>
+
+        <p style="margin-top: 30px;">
           <a href="https://admin.shopify.com/store/kse-suppliers/draft_orders/${numericDraftOrderId}" 
              style="display: inline-block; padding: 10px 15px; background-color: #951828; color: white; text-decoration: none; border-radius: 4px;">
             View Draft Order
@@ -1843,6 +1855,7 @@ async sendShippingRequestEmail(userId: string, draftOrderId: string) {
     throw new Error('Failed to send shipping request email.');
   }
 }
+
 
   async placeOrderEmail(userId: string, draftOrderId: string) {
     const transporter = nodemailer.createTransport({
