@@ -12,6 +12,7 @@ import { title } from 'process';
 @Injectable()
 export class AppService {
   private readonly shopifyApiUrl: string;
+  private readonly shopifyRestUrl2: string;
   private readonly shopifyAccessToken: string;
   private readonly tags: DraftOrderTag[] = [];
 
@@ -91,7 +92,7 @@ async getDraftOrderDetails(draftOrderId: string): Promise<any> {
   const numericId = draftOrderId.replace('gid://shopify/DraftOrder/', '');
 
   const response = await axios.get(
-    `${this.shopifyRestUrl}/admin/api/2024-01/draft_orders/${numericId}.json`,
+    `${this.shopifyRestUrl2}/admin/api/2024-01/draft_orders/${numericId}.json`,
     {
       headers: {
         'X-Shopify-Access-Token': this.shopifyAccessToken,
