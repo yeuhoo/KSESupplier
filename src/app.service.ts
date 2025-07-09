@@ -57,6 +57,31 @@ export class AppService {
       throw new Error('Failed to fetch company price level.');
     }
   }
+async addNotifyStaffMetafield(draftOrderId: string): Promise<boolean> {
+  try {
+    await axios.post(
+      `https://${this.configService.get<string>('SHOPIFY_STORE')}/admin/api/2024-01/draft_orders/${draftOrderId}/metafields.json`,
+      {
+        metafield: {
+          namespace: "custom",
+          key: "notify_staff",
+          value: "true",
+          type: "single_line_text_field"
+        }
+      },
+      {
+        headers: {
+          "X-Shopify-Access-Token": this.configService.get<string>('SHOPIFY_ADMIN_TOKEN'),
+          "Content-Type": "application/json"
+        }
+      }
+    );
+    return true;
+  } catch (error) {
+    console.error("Metafield Error:", error.response?.data || error);
+    return false;
+  }
+}
 
 async updateDraftOrderNote(draftOrderId: string, jobCode: string): Promise<boolean> {
   const draftOrderIdFormatted = draftOrderId.startsWith('gid://shopify/DraftOrder/')
