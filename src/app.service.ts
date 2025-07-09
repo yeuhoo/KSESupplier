@@ -58,6 +58,58 @@ export class AppService {
     }
   }
 
+  async updateDraftOrderNote(draftOrderId: string, jobCode: string): Promise<boolean> {
+  const mutation = `
+    mutation draftOrderUpdate($input: DraftOrderInput!) {
+      draftOrderUpdate(input: $input) {
+        draftOrder {
+          id
+          note
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      id: draftOrderId,
+      note: `PO: ${jobCode}`,
+    },
+  };
+
+  try {
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: {
+        query: mutation,
+        variables,
+      },
+    });
+
+    const errors = response.data?.data?.draftOrderUpdate?.userErrors;
+    if (errors && errors.length > 0) {
+      console.error('GraphQL User Errors:', errors);
+      throw new Error(errors.map(e => e.message).join(', '));
+    }
+
+    console.log('Draft order note updated successfully:', response.data.data.draftOrderUpdate.draftOrder);
+    return true;
+  } catch (error) {
+    console.error('Error updating draft order note:', error.message);
+    throw new Error('Failed to update draft order note.');
+  }
+}
+
+
   async deleteCompany(company: string) {
     try {
       let mapping = {};
