@@ -59,6 +59,10 @@ export class AppService {
   }
 
 async updateDraftOrderNote(draftOrderId: string, jobCode: string): Promise<boolean> {
+  const draftOrderIdFormatted = draftOrderId.startsWith('gid://shopify/DraftOrder/')
+    ? draftOrderId
+    : `gid://shopify/DraftOrder/${draftOrderId}`;
+
   const mutation = `
     mutation draftOrderUpdate($input: DraftOrderInput!) {
       draftOrderUpdate(input: $input) {
@@ -76,45 +80,49 @@ async updateDraftOrderNote(draftOrderId: string, jobCode: string): Promise<boole
 
   const variables = {
     input: {
-      id: draftOrderId,
+      id: draftOrderIdFormatted,
       note: `PO: ${jobCode}`,
     },
   };
 
   try {
     const response = await axios({
-  url: this.shopifyApiUrl,
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Shopify-Access-Token': this.shopifyAccessToken,
-  },
-  data: {
-    query: mutation,
-    variables,
-  },
-});
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: {
+        query: mutation,
+        variables,
+      },
+    });
 
 
-if (!response.data?.data) {
-  console.error('Shopify GraphQL Error:', JSON.stringify(response.data, null, 2));
-  throw new Error('No data returned from Shopify.');
-}
+    console.log('FULL RESULT:', JSON.stringify(response.data, null, 2));
 
-const draftOrderUpdate = response.data.data.draftOrderUpdate;
+    const draftOrderUpdate = response.data?.data?.draftOrderUpdate;
 
-if (!draftOrderUpdate) {
-  console.error('draftOrderUpdate is missing in response:', JSON.stringify(response.data, null, 2));
-  throw new Error('draftOrderUpdate field missing in Shopify response.');
-}
+    if (!draftOrderUpdate) {
+      console.error('draftOrderUpdate is missing in response:', JSON.stringify(response.data, null, 2));
+      throw new Error('draftOrderUpdate field missing in Shopify response.');
+    }
 
-    console.log('Draft order note updated successfully:', response.data.data.draftOrderUpdate.draftOrder);
+    const errors = draftOrderUpdate.userErrors;
+    if (errors && errors.length > 0) {
+      console.error('GraphQL User Errors:', errors);
+      throw new Error(errors.map(e => e.message).join(', '));
+    }
+
+    console.log('Draft order note updated successfully:', draftOrderUpdate.draftOrder);
     return true;
   } catch (error) {
     console.error('Error updating draft order note:', error.message);
     throw new Error('Failed to update draft order note.');
   }
 }
+
 
 
 
