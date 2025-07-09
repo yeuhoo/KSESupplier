@@ -1832,8 +1832,6 @@ const productListHTML = lineItems.map(item => {
             <tr>
               <th style="padding: 8px; border: 1px solid #ddd;">Product</th>
               <th style="padding: 8px; border: 1px solid #ddd;">Qty</th>
-              <th style="padding: 8px; border: 1px solid #ddd;">Price Each</th>
-              <th style="padding: 8px; border: 1px solid #ddd;">Line Total</th>
             </tr>
           </thead>
           <tbody>${productListHTML}</tbody>
