@@ -1786,8 +1786,10 @@ async sendShippingRequestEmail(userId: string, draftOrderId: string) {
   const productListHTML = lineItems.map(item => {
     const title = item.title || '';
     const quantity = item.quantity || 1;
-    const priceEach = parseFloat(item.applied_discount?.amount || item.price || '0.00');
-    const totalPrice = priceEach * quantity;
+    const totalLinePrice = parseFloat(item.line_price || '0.00');
+const priceEach = totalLinePrice / quantity;
+const totalPrice = totalLinePrice;
+
 
     return `
       <tr>
