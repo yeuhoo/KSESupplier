@@ -18,6 +18,7 @@ export class AppService {
   constructor(private readonly configService: ConfigService) {
     this.shopifyApiUrl = this.configService.get<string>('SHOPIFY_API_URL');
     this.shopifyAccessToken = this.configService.get<string>('SHOPIFY_ACCESS_TOKEN');
+    this.shopifyRestUrl2 = this.configService.get<string>('SHOPIFY_REST_API_URL_2');
   }
   escapeGraphQLString(str: string): string {
   if (!str) return "";
@@ -90,7 +91,7 @@ async getDraftOrderDetails(draftOrderId: string): Promise<any> {
   const numericId = draftOrderId.replace('gid://shopify/DraftOrder/', '');
 
   const response = await axios.get(
-    `${this.shopifyApiUrl}/admin/api/2024-01/draft_orders/${numericId}.json`,
+    `${this.shopifyRestUrl}/admin/api/2024-01/draft_orders/${numericId}.json`,
     {
       headers: {
         'X-Shopify-Access-Token': this.shopifyAccessToken,
@@ -102,6 +103,7 @@ async getDraftOrderDetails(draftOrderId: string): Promise<any> {
 
   return response.data.draft_order;
 }
+
 
 
 async updateDraftOrderNote(draftOrderId: string, jobCode: string): Promise<boolean> {
