@@ -1783,23 +1783,26 @@ async sendShippingRequestEmail(userId: string, draftOrderId: string) {
 
   const address = customer.default_address || {};
 
-  const productListHTML = lineItems.map(item => {
-    const title = item.title || '';
-    const quantity = item.quantity || 1;
-    const totalLinePrice = parseFloat(item.line_price || '0.00');
-const priceEach = totalLinePrice / quantity;
-const totalPrice = totalLinePrice;
+const productListHTML = lineItems.map(item => {
+  const title = item.title || '';
+  const quantity = item.quantity || 1;
 
+  const originalPrice = parseFloat(item.variant?.price || '0');
+  const totalDiscount = parseFloat(item.appliedDiscount?.value || '0');
+  const unitDiscount = quantity > 0 ? totalDiscount / quantity : 0;
 
-    return `
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ddd;">${title}</td>
-        <td style="padding: 8px; border: 1px solid #ddd;">x${quantity}</td>
-        <td style="padding: 8px; border: 1px solid #ddd;">${priceEach.toFixed(2)} ${currency} each</td>
-        <td style="padding: 8px; border: 1px solid #ddd;">${totalPrice.toFixed(2)} ${currency} total</td>
-      </tr>
-    `;
-  }).join("");
+  const adjustedUnitPrice = originalPrice - unitDiscount;
+  const adjustedLinePrice = adjustedUnitPrice * quantity;
+
+  return `
+    <tr>
+      <td>${title}</td>
+      <td>x${quantity}</td>
+      <td>${adjustedUnitPrice.toFixed(2)} ${draftOrder.currency || ''} each</td>
+      <td>${adjustedLinePrice.toFixed(2)} ${draftOrder.currency || ''} total</td>
+    </tr>
+  `;
+}).join('');
 
   const orderTotal = parseFloat(draftOrder.total_price || '0.00');
 
