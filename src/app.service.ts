@@ -58,7 +58,7 @@ export class AppService {
     }
   }
 
-  async updateDraftOrderNote(draftOrderId: string, jobCode: string): Promise<boolean> {
+async updateDraftOrderNote(draftOrderId: string, jobCode: string): Promise<boolean> {
   const mutation = `
     mutation draftOrderUpdate($input: DraftOrderInput!) {
       draftOrderUpdate(input: $input) {
@@ -95,6 +95,9 @@ export class AppService {
       },
     });
 
+
+    console.log('FULL RESULT:', JSON.stringify(response.data, null, 2));
+
     const errors = response.data?.data?.draftOrderUpdate?.userErrors;
     if (errors && errors.length > 0) {
       console.error('GraphQL User Errors:', errors);
@@ -108,6 +111,7 @@ export class AppService {
     throw new Error('Failed to update draft order note.');
   }
 }
+
 
 
   async deleteCompany(company: string) {
