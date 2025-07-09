@@ -174,7 +174,7 @@ export class AppResolver {
     if (includeTags?.length > 0) {
       const includeSet = new Set(includeTags);
       filteredOrders = filteredOrders.filter((order) =>
-        (order.tags && order.tags.length > 0) && (order.tags || []).every((tag) => includeSet.has(tag))
+        (order.tags && order.tags.length > 0) && (includeTags.every((tag) => (order.tags || []).includes(tag)))
       );
     }
 

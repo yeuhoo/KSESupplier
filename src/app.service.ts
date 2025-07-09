@@ -989,7 +989,7 @@ async newGetDraftOrders(): Promise<DraftOrder[]> {
       data: {
         query: `
           query {
-            draftOrders(first: 50) {
+            draftOrders(first: 100) {
               edges {
                 node {
                   id
