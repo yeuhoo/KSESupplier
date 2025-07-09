@@ -38,6 +38,15 @@ export class AppResolver {
   }
 
   @Mutation(() => Boolean)
+  async updateDraftOrderNote(
+    @Args('draftOrderId') draftOrderId: string,
+    @Args('jobCode') jobCode: string
+  ): Promise<boolean> {
+    return this.appService.updateDraftOrderNote(draftOrderId, jobCode);
+  }
+
+
+  @Mutation(() => Boolean)
   async requestShippingFee(
     @Args('userId') userId: string,
     @Args('draftOrderId') draftOrderId: string,
