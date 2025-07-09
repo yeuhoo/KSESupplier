@@ -83,26 +83,30 @@ async updateDraftOrderNote(draftOrderId: string, jobCode: string): Promise<boole
 
   try {
     const response = await axios({
-      url: this.shopifyApiUrl,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': this.shopifyAccessToken,
-      },
-      data: {
-        query: mutation,
-        variables,
-      },
-    });
+  url: this.shopifyApiUrl,
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Shopify-Access-Token': this.shopifyAccessToken,
+  },
+  data: {
+    query: mutation,
+    variables,
+  },
+});
 
 
-    console.log('FULL RESULT:', JSON.stringify(response.data, null, 2));
+if (!response.data?.data) {
+  console.error('Shopify GraphQL Error:', JSON.stringify(response.data, null, 2));
+  throw new Error('No data returned from Shopify.');
+}
 
-    const errors = response.data?.data?.draftOrderUpdate?.userErrors;
-    if (errors && errors.length > 0) {
-      console.error('GraphQL User Errors:', errors);
-      throw new Error(errors.map(e => e.message).join(', '));
-    }
+const draftOrderUpdate = response.data.data.draftOrderUpdate;
+
+if (!draftOrderUpdate) {
+  console.error('draftOrderUpdate is missing in response:', JSON.stringify(response.data, null, 2));
+  throw new Error('draftOrderUpdate field missing in Shopify response.');
+}
 
     console.log('Draft order note updated successfully:', response.data.data.draftOrderUpdate.draftOrder);
     return true;
