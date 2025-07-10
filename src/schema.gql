@@ -156,6 +156,7 @@ scalar JSONObject
 type Mutation {
   requestShippingFee(userId: String!, draftOrderId: String!, email: String!, shippingAddress: ShippingAddressInput!): Boolean!
   sendDraftOrderInvoice(draftOrderId: String!): Boolean!
+  createUser(firstName: String!, lastName: String!, addresses: [AddressInput!]!, email: String): User!
   deleteCompany(company: String!): Metafield!
   setCompanyPriceLevel(company: String!, priceLevel: String): Metafield!
   updateCustomerCompany(id: String!, company: String!): CustomerCompany!
@@ -177,6 +178,15 @@ input ShippingAddressInput {
   zip: String!
   firstName: String
   lastName: String
+}
+
+input AddressInput {
+  address1: String
+  address2: String
+  city: String
+  province: String
+  country: String
+  zip: String
 }
 
 input LineItemInput {

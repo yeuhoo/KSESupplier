@@ -7,6 +7,8 @@ import { MetafieldInput } from './dto/metafield.input';
 import * as nodemailer from 'nodemailer';
 import { DraftOrderTag } from './dto/draft-order-tag.model';
 import { DraftOrder } from './draft-order.model';
+import { Address, User } from './user.model';
+import { AddressInput } from './dto/address.input';
 import { title } from 'process';
 
 @Injectable()
@@ -27,6 +29,118 @@ export class AppService {
     .replace(/\n/g, '\\n')    // escape newlines
     .replace(/\r/g, '')       // remove carriage returns if any
     .trim();
+  }
+
+  async createUser(firstName: string, lastName: string, addresses: AddressInput[], email?: string): Promise<User> {
+    // const mutation = `
+    //   mutation {
+    //     customerCreate(input: {
+    //       firstName: "${this.escapeGraphQLString(firstName)}",
+    //       lastName: "${this.escapeGraphQLString(lastName) || "N/A"}",
+    //       email: "${this.escapeGraphQLString(email) || "N/A"}",
+    //       addresses: [${addresses.map(address => `
+    //         {
+    //           firstName: "${this.escapeGraphQLString(firstName) || "N/A"}",
+    //           lastName: "${this.escapeGraphQLString(lastName) || "N/A"}",
+    //           address1: "${this.escapeGraphQLString(address.address1) || "N/A"}",
+    //           city: "${this.escapeGraphQLString(address.city) || "N/A"}",
+    //           company: "${this.escapeGraphQLString(address.company) || "N/A"}",
+    //           province: "${this.escapeGraphQLString(address.province) || "N/A"}",
+    //           country: "${this.escapeGraphQLString(address.country) || "United States"}",
+    //           zip: "${this.escapeGraphQLString(address.zip) || "N/A"}"
+    //         }
+    //       `).join(",")}]
+    //     }) {
+    //       customer {
+    //         id
+    //         firstName
+    //         lastName
+    //         email
+    //         addresses {
+    //           id
+    //           address1
+    //           city
+    //           company
+    //           province
+    //           country
+    //           zip
+    //         }
+    //       }
+    //     }
+    //   }
+    // `;
+
+    const mutation = `
+      mutation customerCreate($input: CustomerInput!) {
+        customerCreate(input: $input) {
+          customer {
+            id
+            firstName
+            lastName
+            email
+            addresses {
+              address1
+              city
+              province
+              country
+              zip
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        firstName: this.escapeGraphQLString(firstName) || "N/A",
+        lastName: this.escapeGraphQLString(lastName) || "N/A",
+        email: this.escapeGraphQLString(email) || "",
+        addresses: addresses.map(address => ({
+          address1: this.escapeGraphQLString(address.address1) || "N/A",
+          address2: this.escapeGraphQLString(address.address2) || "",
+          city: this.escapeGraphQLString(address.city) || "N/A",
+          province: this.escapeGraphQLString(address.province) || "New York",
+          country: this.escapeGraphQLString(address.country) || "United States",
+          zip: this.escapeGraphQLString(address.zip) || "10012",
+        })),
+      }
+    }
+
+    console.log('chekek', mutation);
+
+    const data = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: { query: mutation, variables },
+    }).then(response => {
+      console.log('chekek response for createUser:', response.data);
+      if (response.data.data.customerCreate.userErrors.length > 0) {
+        throw new Error(response.data.data.customerCreate.userErrors.map(e => e.message).join(', '));
+      }
+      if (!response || !response.data || !response.data.data) {
+        throw new Error(response.data.errors ? response.data.errors[0].message : 'No data returned from Shopify API');
+      }
+      return response.data.data.customerCreate;
+    }).catch(error => {
+      console.error('Error creating user:', error.message);
+      throw new Error('Failed to create user.');
+    });
+    if (!data || !data.customer) {
+      console.log('User creation failed:', data);
+      throw new Error('User creation failed.');
+    }
+
+    console.log('chekek User creation success:', data);
+
+    return data.customer;
   }
 
   async getCompanyPriceLevel() {

@@ -1,7 +1,7 @@
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { AppService } from './app.service';
 import { Product } from './product.model';
-import { Address, User } from './user.model';
+import { User } from './user.model';
 import { Customer, DraftOrder, LineItem, Metafield, Variant } from './draft-order.model';
 import { MetafieldInput } from './dto/metafield.input';
 import { ShippingAddressInput } from './dto/shipping-address.input';
@@ -9,6 +9,7 @@ import { DraftOrderInput, LineItemInput } from './dto/draft-order.input';
 import { PropertyInput } from './dto/property.input';
 import { DraftOrderTag } from './dto/draft-order-tag.model';
 import { CustomerCompany } from './dto/customer-company.dto';
+import { AddressInput } from './dto/address.input';
 import { title } from 'process';
 import { GraphQLJSONObject } from 'graphql-type-json';
 
@@ -186,6 +187,20 @@ export class AppResolver {
     }
 
     return filteredOrders;
+  }
+
+  @Mutation(() => User)
+  async createUser(
+    @Args('firstName', { type: () => String }) firstName: string,
+    @Args('lastName', { type: () => String }) lastName: string,
+    @Args('addresses', { type: () => [AddressInput] }) addresses: AddressInput[],
+    @Args('email', { type: () => String, nullable: true }) email?: string,
+  ): Promise<User> {
+    const user = await this.appService.createUser(firstName, lastName, addresses, email);
+    if (!user) {
+      throw new Error('User creation failed.');
+    }
+    return user;
   }
 
   @Query(() => [DraftOrder])
