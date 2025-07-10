@@ -14,12 +14,14 @@ import { title } from 'process';
 @Injectable()
 export class AppService {
   private readonly shopifyApiUrl: string;
+  private readonly shopifyRestUrl2: string;
   private readonly shopifyAccessToken: string;
   private readonly tags: DraftOrderTag[] = [];
 
   constructor(private readonly configService: ConfigService) {
     this.shopifyApiUrl = this.configService.get<string>('SHOPIFY_API_URL');
     this.shopifyAccessToken = this.configService.get<string>('SHOPIFY_ACCESS_TOKEN');
+    this.shopifyRestUrl2 = this.configService.get<string>('SHOPIFY_REST_API_URL_2');
   }
   escapeGraphQLString(str: string): string {
   if (!str) return "";
@@ -171,6 +173,121 @@ export class AppService {
       throw new Error('Failed to fetch company price level.');
     }
   }
+async addNotifyStaffMetafield(draftOrderId: string): Promise<boolean> {
+  const store = this.configService.get<string>('SHOPIFY_STORE');
+  const token = this.configService.get<string>('SHOPIFY_ADMIN_TOKEN');
+  const url = `https://${store}/admin/api/2024-01/draft_orders/${draftOrderId}/metafields.json`;
+
+  try {
+    await axios.post(
+      url,
+      {
+        metafield: {
+          namespace: "custom",
+          key: "notify_staff",
+          value: "true",
+          type: "single_line_text_field"
+        }
+      },
+      {
+        headers: {
+          "X-Shopify-Access-Token": token,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+    return true;
+  } catch (error) {
+    console.error("Metafield Error:", error.response?.data || error);
+    return false;
+  }
+}
+async getDraftOrderDetails(draftOrderId: string): Promise<any> {
+  const numericId = draftOrderId.replace('gid://shopify/DraftOrder/', '');
+
+  const response = await axios.get(
+    `${this.shopifyRestUrl2}/admin/api/2024-01/draft_orders/${numericId}.json`,
+    {
+      headers: {
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    }
+  );
+
+  return response.data.draft_order;
+}
+
+
+
+async updateDraftOrderNote(draftOrderId: string, jobCode: string): Promise<boolean> {
+  const draftOrderIdFormatted = draftOrderId.startsWith('gid://shopify/DraftOrder/')
+    ? draftOrderId
+    : `gid://shopify/DraftOrder/${draftOrderId}`;
+
+  const mutation = `
+    mutation draftOrderUpdate($input: DraftOrderInput!) {
+      draftOrderUpdate(input: $input) {
+        draftOrder {
+          id
+          note
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      id: draftOrderIdFormatted,
+      note: `PO: ${jobCode}`,
+    },
+  };
+
+  try {
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: {
+        query: mutation,
+        variables,
+      },
+    });
+
+
+    console.log('FULL RESULT:', JSON.stringify(response.data, null, 2));
+
+    const draftOrderUpdate = response.data?.data?.draftOrderUpdate;
+
+    if (!draftOrderUpdate) {
+      console.error('draftOrderUpdate is missing in response:', JSON.stringify(response.data, null, 2));
+      throw new Error('draftOrderUpdate field missing in Shopify response.');
+    }
+
+    const errors = draftOrderUpdate.userErrors;
+    if (errors && errors.length > 0) {
+      console.error('GraphQL User Errors:', errors);
+      throw new Error(errors.map(e => e.message).join(', '));
+    }
+
+    console.log('Draft order note updated successfully:', draftOrderUpdate.draftOrder);
+    return true;
+  } catch (error) {
+    console.error('Error updating draft order note:', error.message);
+    throw new Error('Failed to update draft order note.');
+  }
+}
+
+
+
 
   async deleteCompany(company: string) {
     try {
@@ -1760,46 +1877,102 @@ async updateDraftOrder(id: string, customerId: string, lineItems: LineItemInput[
     }
   }
   
-  async sendShippingRequestEmail(userId: string, draftOrderId: string) {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail', // or another email provider
-      auth: {
-        user: process.env.EMAIL_USER, // email account username
-        pass: process.env.EMAIL_PASS, // email account password
-      },
-    });
+async sendShippingRequestEmail(userId: string, draftOrderId: string) {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
 
-    const numericDraftOrderId = draftOrderId.replace('gid://shopify/DraftOrder/', '');
+  const numericDraftOrderId = draftOrderId.replace('gid://shopify/DraftOrder/', '');
+  const draftOrder = await this.getDraftOrderDetails(draftOrderId);
 
-const mailOptions = {
-  from: process.env.EMAIL_USER,
-  to: 'orders@ksesuppliers.com',
-  subject: `Request Shipping Fee: ${numericDraftOrderId}`,
-  html: `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-      <h2 style="color: #951828;">Shipping Fee Request</h2>
-      <p><strong>User ID:</strong> ${userId}</p>
-      <p><strong>Draft Order ID:</strong> ${numericDraftOrderId}</p>
-      <p>User has requested a shipping fee for this draft order.</p>
-      <p style="margin-top: 20px;">
-        <a href="https://admin.shopify.com/store/kse-suppliers/draft_orders/${numericDraftOrderId}" 
-           style="display: inline-block; padding: 10px 15px; background-color: #951828; color: white; text-decoration: none; border-radius: 4px;">
-          View Draft Order
-        </a>
-      </p>
-    </div>
-  `
-};
+  const customer = draftOrder?.customer || {};
+  const lineItems = draftOrder?.line_items || [];
+  const tags = draftOrder?.tags || "";
+  const poTag = tags.split(',').find(tag => tag.includes('PO:')) || '';
+  const currency = draftOrder.currency || '';
 
-    try {
-      await transporter.sendMail(mailOptions);
-      console.log('Shipping request email sent successfully.');
-      return { success: true, message: 'Email sent successfully' };
-    } catch (error) {
-      console.error('Error sending email:', error);
-      throw new Error('Failed to send shipping request email.');
-    }
+  const address = customer.default_address || {};
+
+const productListHTML = lineItems.map(item => {
+  const title = item.title || '';
+  const quantity = item.quantity || 1;
+
+  const originalPrice = parseFloat(item.variant?.price || '0');
+  const totalDiscount = parseFloat(item.appliedDiscount?.value || '0');
+  const unitDiscount = quantity > 0 ? totalDiscount / quantity : 0;
+
+  const adjustedUnitPrice = originalPrice - unitDiscount;
+  const adjustedLinePrice = adjustedUnitPrice * quantity;
+
+  return `
+    <tr>
+      <td>${title}</td>
+      <td>x${quantity}</td>
+      <td>${adjustedUnitPrice.toFixed(2)} ${draftOrder.currency || ''} each</td>
+      <td>${adjustedLinePrice.toFixed(2)} ${draftOrder.currency || ''} total</td>
+    </tr>
+  `;
+}).join('');
+
+  const orderTotal = parseFloat(draftOrder.total_price || '0.00');
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: 'orders@ksesuppliers.com',
+    subject: `Shipping Request - Order ${draftOrder.name || numericDraftOrderId}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; background-color: #f9f9f9;">
+        <h2 style="color: #951828;">Shipping Fee Request</h2>
+
+        <p><strong>User ID:</strong> ${userId}</p>
+        <p><strong>Customer:</strong> ${customer.first_name || ''} ${customer.last_name || ''} (${customer.email || ''})</p>
+        <p><strong>Company:</strong> ${address.company || 'N/A'}</p>
+        <p><strong>PO Number:</strong> ${poTag || 'None'}</p>
+
+        <h4 style="margin-top: 20px;">Shipping Address:</h4>
+        <p>
+          ${address.address1 || ''}<br>
+          ${address.city || ''}, ${address.province || ''}<br>
+          ${address.country || ''} ${address.zip || ''}
+        </p>
+
+        <h4 style="margin-top: 20px;">Order Details:</h4>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead style="background-color: #eee;">
+            <tr>
+              <th style="padding: 8px; border: 1px solid #ddd;">Product</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">Qty</th>
+            </tr>
+          </thead>
+          <tbody>${productListHTML}</tbody>
+        </table>
+
+        <h3 style="text-align: right; margin-top: 20px;">Order Total: ${orderTotal.toFixed(2)} ${currency}</h3>
+
+        <p style="margin-top: 30px;">
+          <a href="https://admin.shopify.com/store/kse-suppliers/draft_orders/${numericDraftOrderId}" 
+             style="display: inline-block; padding: 10px 15px; background-color: #951828; color: white; text-decoration: none; border-radius: 4px;">
+            View Draft Order
+          </a>
+        </p>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Shipping request email sent successfully.');
+    return { success: true, message: 'Email sent successfully' };
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw new Error('Failed to send shipping request email.');
   }
+}
+
 
   async placeOrderEmail(userId: string, draftOrderId: string) {
     const transporter = nodemailer.createTransport({

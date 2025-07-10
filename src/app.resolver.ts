@@ -39,6 +39,15 @@ export class AppResolver {
   }
 
   @Mutation(() => Boolean)
+  async updateDraftOrderNote(
+    @Args('draftOrderId') draftOrderId: string,
+    @Args('jobCode') jobCode: string
+  ): Promise<boolean> {
+    return this.appService.updateDraftOrderNote(draftOrderId, jobCode);
+  }
+
+
+  @Mutation(() => Boolean)
   async requestShippingFee(
     @Args('userId') userId: string,
     @Args('draftOrderId') draftOrderId: string,
@@ -52,10 +61,18 @@ export class AppResolver {
 
       return true;
     } catch (error) {
-      console.error('Error requesting shipping fee:', error.message);
+      console.error('Error requesting shipping fee:', error);
       throw new Error('Failed to request shipping fee.');
     }
   }
+  
+@Mutation(() => Boolean)
+async addNotifyStaffMetafield(
+  @Args('draftOrderId') draftOrderId: string
+): Promise<boolean> {
+  return this.appService.addNotifyStaffMetafield(draftOrderId);
+}
+
 
   @Query(() => Boolean)
   async isDraftOrderCompleted(@Args('id') id: string): Promise<boolean> {
