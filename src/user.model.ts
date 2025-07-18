@@ -40,4 +40,10 @@ export class User {
 
   @Field(type => [Address], { nullable: true })
   addresses: Address[];
+
+  @Field(type => Address, { nullable: true })
+  defaultAddress: Address;
+
+  @Field({ nullable: true })
+  priceLevel: string;
 }

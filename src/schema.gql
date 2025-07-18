@@ -24,6 +24,8 @@ type User {
   lastName: String
   email: String
   addresses: [Address!]
+  defaultAddress: Address
+  priceLevel: String
 }
 
 type ShippingAddress {
@@ -129,20 +131,19 @@ type CustomerCompany {
   id: String!
   firstName: String
   lastName: String
-  company: String!
-  priceLevel: String!
+  company: String
+  priceLevel: String
 }
 
 type Query {
   products: [Product!]!
-  users: [User!]!
+  getCustomers: [User!]!
   user(id: String!): User
   getDraftOrder(id: String!): DraftOrder
   isDraftOrderCompleted(id: String!): Boolean!
   getCustomersWithCompanies: [CustomerCompany!]!
   getDraftOrdersByCustomerId(customerId: String!, includeTags: [String!], excludeTags: [String!]): [DraftOrder!]
   getAllDraftOrdersWithTags(includeTags: [String!], excludeTags: [String!]): [DraftOrder!]
-  draftOrders: [DraftOrder!]!
   checkForShippingFee(draftOrderId: String!): String
   getCompanyPriceLevel: JSONObject
   getDraftOrderTags(draftOrderId: String!): [DraftOrderTag!]!

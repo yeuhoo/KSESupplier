@@ -11,9 +11,9 @@ export class CustomerCompany {
   @Field({ nullable: true })
   lastName: string;
 
-  @Field()
+  @Field({ nullable: true })
   company: string;
 
-  @Field()
+  @Field({ nullable: true})
   priceLevel: string;
 }
