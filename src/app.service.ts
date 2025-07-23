@@ -1041,7 +1041,8 @@ export class AppService {
 
       return {
         id: draftOrder.id,
-        name: draftOrder.name,
+        name: draftOrder.name ? draftOrder.name : null,
+        invoiceUrl: draftOrder.invoiceUrl ? draftOrder.invoiceUrl : null,
         createdAt: draftOrder.createdAt,
         shippingAddress: draftOrder.shippingAddress,
         lineItems: draftOrder.lineItems.edges.map((edge) => ({
