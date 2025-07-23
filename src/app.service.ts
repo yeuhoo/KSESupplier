@@ -994,6 +994,7 @@ export class AppService {
                     query getDraftOrder($id: ID!) {
                         draftOrder(id: $id) {
                             id
+                            name
                             invoiceUrl
                             createdAt
                             shippingAddress {
