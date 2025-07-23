@@ -1041,6 +1041,7 @@ export class AppService {
 
       return {
         id: draftOrder.id,
+        name: draftOrder.name,
         createdAt: draftOrder.createdAt,
         shippingAddress: draftOrder.shippingAddress,
         lineItems: draftOrder.lineItems.edges.map((edge) => ({
