@@ -138,7 +138,7 @@ type CustomerCompany {
 type Query {
   products: [Product!]!
   getCustomers: [User!]!
-  getCustomerById(id: String!): User
+  user(id: String!): User
   getDraftOrder(id: String!): DraftOrder
   isDraftOrderCompleted(id: String!): Boolean!
   getCustomersWithCompanies: [CustomerCompany!]!
@@ -157,6 +157,8 @@ scalar JSONObject
 type Mutation {
   updateDraftOrderNote(draftOrderId: String!, jobCode: String!): Boolean!
   requestShippingFee(userId: String!, draftOrderId: String!, email: String!, shippingAddress: ShippingAddressInput!): Boolean!
+  addNotifyStaffMetafield(draftOrderId: String!): Boolean!
+  sendDraftOrderInvoice(draftOrderId: String!): Boolean!
   createUser(firstName: String!, lastName: String!, addresses: [AddressInput!]!, email: String): User!
   deleteCompany(company: String!): Metafield!
   setCompanyPriceLevel(company: String!, priceLevel: String): Metafield!

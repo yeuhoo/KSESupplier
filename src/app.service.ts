@@ -18,7 +18,6 @@ export class AppService {
   private readonly shopifyRestUrl2: string;
   private readonly shopifyAccessToken: string;
   private readonly tags: DraftOrderTag[] = [];
-  private readonly shopId: string = 'gid://shopify/Shop/78220263608';
 
   constructor(private readonly configService: ConfigService) {
     this.shopifyApiUrl = this.configService.get<string>('SHOPIFY_API_URL');
@@ -267,14 +266,12 @@ export class AppService {
         : `gid://shopify/Customer/${id}`; // Add prefix if missing
 
       const priceLevels = [
-        'Price_A',
-        'Price_B',
+        'price1',
+        'price2',
         'price6',
         'price7',
         'price8',
         'test',
-        'Price CP',
-        'Price_F'
       ];
 
       // Get default Address ID and existing customer tags
@@ -398,6 +395,7 @@ export class AppService {
           query: `
             query {
               shop {
+                id
                 metafield(namespace: "pricing", key: "price_level_per_company") {
                   id
                   value
@@ -408,6 +406,8 @@ export class AppService {
         },
       })
         .then((response) => {
+          shopId = response.data.data.shop.id; // Get Shop ID for mutation
+
           // Get existing company-priceLevel pairings and replace. Add new company and priceLevel if not existing.
           const metafield = response.data.data.shop.metafield;
           if (metafield && metafield.value) {
@@ -426,7 +426,7 @@ export class AppService {
             key: "price_level_per_company",
             value: "${this.escapeGraphQLString(JSON.stringify(mapping))}",
             type: "json",
-            ownerId: "${this.shopId}"
+            ownerId: "${shopId}"
           }]) {
             metafields {
               id
@@ -562,71 +562,6 @@ export class AppService {
       throw new Error('Failed to delete company.');
     }
   }
-
-  /**
-   * COMPANY CUSTOMER COUNT SERVICES
-   */
-  // async generateCompanyCustomerCount() {
-  //   const customerCount = {};
-        
-  //   const customers = await this.getCustomers();
-
-  //   console.log('chek customerCount before:', customerCount);
-
-  //   customers.forEach((customer) => {
-  //     if (customer.defaultAddress?.company) {
-  //       const pointer = customer.defaultAddress.company.trim();
-  //       if (customerCount[pointer]) {
-  //         customerCount[pointer] = customerCount[pointer] + 1;
-  //       } else {
-  //         customerCount[pointer] = 1;
-  //       }
-  //     }
-  //   })
-
-  //   console.log('chek customerCount after:', customerCount);
-
-  //   const query = `
-  //     mutation MetafieldsSet($metafields: [MetafieldsSetInput!]!) {
-  //       metafieldsSet(metafields: $metafields) {
-  //         metafields {
-  //           key
-  //           namespace
-  //           value
-  //           createdAt
-  //           updatedAt
-  //         }
-  //         userErrors {
-  //           field
-  //           message
-  //           code
-  //         }
-  //       }
-  //     }
-  //   `;
-
-  //   const variables = {
-  //     "metafields": [
-  //       {
-  //         "key": "company_customer_count",
-  //         "namespace": "pricing",
-  //         "ownerId": this.shopId,
-  //         "type": "json",
-  //         "value": "{\"Prime Tex\":\"Price CP\",\"Kse Suppliers \":\"Price CP\",\"East Coast\":\"Price CP\",\"Bulk Linen Supply \":\"Price CP\",\"Silver Lining\":\"Price CP\",\"suburban bowery of suffern Inc\":\"Price_A\",\"ProSource\":\"Price_A\",\"Liberty Textile CO\":\"Price_F\",\"Pacific Link\":\"Price_F\",\"Manhattan Hosiery Company\":\"Price_A\",\"Oberlander@ksesuppliers\":\"Price_A\",\"New Dawn Supply\":\"Price CP\",\"Trusted Thread LLC,\":\"Price CP\",\"Centra Clean\":\"Price_A\",\"Prestium Suppliers\":\"Price_F\",\"HY Supplies Inc.\":\"Price_A\",\"American Hospitality Supply\":\"Price_F\",\"Trend Supply\":\"Price_B\"}"
-  //       }
-  //     ]
-  //   };
-
-  //   // const response = await axios({
-  //   //   url: this.shopifyApiUrl,
-  //   //   method: 'POST',
-  //   //   headers: {
-  //   //     'Content-Type': 'application/json',
-  //   //     'X-Shopify-Access-Token': this.shopifyAccessToken,
-  //   //   },
-  //   //   data: { query, variables }
-  //   // })
-  // }
 
   /** 
    * PRODUCT SERVICES
