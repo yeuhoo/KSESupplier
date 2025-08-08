@@ -8,6 +8,9 @@ export class AddressInput {
   @Field({ nullable: true })
   address2: string;
 
+  @Field()
+  company: string;
+
   @Field({ nullable: true })
   city: string;
 

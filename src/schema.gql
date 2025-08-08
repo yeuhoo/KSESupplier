@@ -146,6 +146,7 @@ type Query {
   getAllDraftOrdersWithTags(includeTags: [String!], excludeTags: [String!]): [DraftOrder!]
   checkForShippingFee(draftOrderId: String!): String
   getCompanyPriceLevel: JSONObject
+  getCompanyCustomerCount: JSONObject
   getDraftOrderTags(draftOrderId: String!): [DraftOrderTag!]!
 }
 
@@ -184,6 +185,7 @@ input ShippingAddressInput {
 input AddressInput {
   address1: String
   address2: String
+  company: String!
   city: String
   province: String
   country: String

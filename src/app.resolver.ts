@@ -176,7 +176,13 @@ export class AppResolver {
     // console.log('chek fetching company price level');
     // await this.appService.setCompanyCustomerCount();
     // console.log('fetched company customer count');
+    this.appService.generateCompanyCustomerCount();
     return await this.appService.getCompanyPriceLevel();
+  }
+
+  @Query(() => GraphQLJSONObject, { nullable: true })
+  async getCompanyCustomerCount(): Promise<Record<string, string>> {
+    return await this.appService.getCompanyCustomerCount();
   }
 
   @Query(() => [DraftOrderTag])
@@ -262,24 +268,20 @@ export class AppResolver {
     priceLevel?: string,
   ): Promise<Metafield> {
     try {
-      const metafields = await this.appService.setCompanyPriceLevel(
+      const metafield = await this.appService.setCompanyPriceLevel(
         company,
-        priceLevel,
-      );
-      const metafield = metafields.find(
-        (mf) =>
-          mf.key === 'price_level_per_company' && mf.namespace === 'pricing',
+        priceLevel = "",
       );
 
       // Update all users under this company with the new price level
       const users = await this.appService.getCustomers();
       for (const user of users) {
-        if (user.defaultAddress.company === company) {
+        if (user.defaultAddress?.company === company) {
           await this.appService.updateCustomerCompany(user.id, company);
         }
       }
 
-      return metafield || null; // Return the found metafield or null
+      return metafield;
     } catch (error) {
       console.error('Error setting company price level:', error.message);
       throw new Error('Failed to set company price level.');

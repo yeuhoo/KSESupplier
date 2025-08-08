@@ -11,6 +11,7 @@ import { Address, User } from './user.model';
 import { AddressInput } from './dto/address.input';
 import { title } from 'process';
 import { CustomerCompany } from './dto/customer-company.dto';
+import { skip } from 'rxjs';
 
 @Injectable()
 export class AppService {
@@ -51,6 +52,16 @@ export class AppService {
     addresses: AddressInput[],
     email?: string,
   ): Promise<User> {
+    let priceLevel = null;
+
+    const companyPriceLevels = await this.getCompanyPriceLevel();
+    for (const [companyName, companyPriceLevel] of Object.entries(companyPriceLevels)) {
+      if (companyName === addresses[0].company) {
+        priceLevel = companyPriceLevel;
+        break;
+      }
+    }
+
     const mutation = `
       mutation customerCreate($input: CustomerInput!) {
         customerCreate(input: $input) {
@@ -62,10 +73,12 @@ export class AppService {
             addresses {
               address1
               city
+              company
               province
               country
               zip
             }
+            tags
           }
           userErrors {
             field
@@ -83,11 +96,13 @@ export class AppService {
         addresses: addresses.map((address) => ({
           address1: this.escapeGraphQLString(address.address1) || 'N/A',
           address2: this.escapeGraphQLString(address.address2) || '',
+          company: this.escapeGraphQLString(address.company) || '',
           city: this.escapeGraphQLString(address.city) || 'N/A',
           province: this.escapeGraphQLString(address.province) || 'New York',
           country: this.escapeGraphQLString(address.country) || 'United States',
           zip: this.escapeGraphQLString(address.zip) || '10012',
         })),
+        tags: [priceLevel],
       },
     };
 
@@ -213,6 +228,7 @@ export class AppService {
       addresses: edge.node.addresses.map((address) => ({
         address1: address.address1,
         address2: address.address2,
+        company: address.company,
         city: address.city,
         province: address.province,
         country: address.country,
@@ -384,7 +400,6 @@ export class AppService {
       priceLevel = priceLevel || ''; // Default to no tag if not provided
 
       let mapping = {};
-      let shopId = null;
 
       // Check if metafield exists and get Shop ID
       await axios({
@@ -407,17 +422,32 @@ export class AppService {
           `,
         },
       })
-        .then((response) => {
-          // Get existing company-priceLevel pairings and replace. Add new company and priceLevel if not existing.
-          const metafield = response.data.data.shop.metafield;
-          if (metafield && metafield.value) {
-            mapping = JSON.parse(metafield.value);
+      .then((response) => {
+        // Get existing company-priceLevel pairings and replace. Add new company and priceLevel if not existing.
+        const metafield = response.data.data.shop.metafield;
+        if (metafield && metafield.value) {
+          mapping = JSON.parse(metafield.value);
+        }
+        mapping[company] = priceLevel;
+      })
+      .catch((error) => {
+        console.error('Error fetching shop metafield:', error.message);
+      });
+
+      // Check for unlisted companies from all customers and add if not listed
+      await this.getCustomers().then((data) => {
+        data.forEach((customer) => {
+          if (customer.defaultAddress && customer.defaultAddress?.company !== null && customer.defaultAddress?.company !== '' && customer.defaultAddress?.company !== undefined) {
+            console.log('chek is company mapped:', mapping.hasOwnProperty(customer.defaultAddress.company));
+            if (!mapping.hasOwnProperty(customer.defaultAddress.company)) {
+              mapping[customer.defaultAddress.company] = ''; // Default to no price level
+              console.log('chek adding unlisted company:', mapping[customer.defaultAddress.company]);
+            }
           }
-          mapping[company] = priceLevel;
-        })
-        .catch((error) => {
-          console.error('Error fetching shop metafield:', error.message);
         });
+      });
+
+      console.log('chek mapping before mutation:', mapping);
 
       const mutation = `
         mutation {
@@ -447,6 +477,7 @@ export class AppService {
         },
         data: { query: mutation },
       }).then((response) => {
+        console.log('chek response after setting company price level:', response.data);
         return response.data.data.metafieldsSet.metafields;
       });
     } catch (error) {
@@ -566,67 +597,111 @@ export class AppService {
   /**
    * COMPANY CUSTOMER COUNT SERVICES
    */
-  // async generateCompanyCustomerCount() {
-  //   const customerCount = {};
-        
-  //   const customers = await this.getCustomers();
+  async generateCompanyCustomerCount() {
+    let customerCount = {};
+      
+    // Grab all existing companies from company price level metafield
+    const initialCompanies = await this.getCompanyPriceLevel().then((data) => {
+      return Object.keys(data);
+    });
 
-  //   console.log('chek customerCount before:', customerCount);
+    initialCompanies.forEach((company) => {
+      customerCount[company.trim()] = 0;
+    });
 
-  //   customers.forEach((customer) => {
-  //     if (customer.defaultAddress?.company) {
-  //       const pointer = customer.defaultAddress.company.trim();
-  //       if (customerCount[pointer]) {
-  //         customerCount[pointer] = customerCount[pointer] + 1;
-  //       } else {
-  //         customerCount[pointer] = 1;
-  //       }
-  //     }
-  //   })
+    // Grab companies from customers and count. Add unlisted companies to customerCount
+    const customers = await this.getCustomers();
 
-  //   console.log('chek customerCount after:', customerCount);
+    customers.forEach((customer) => {
+      if (customer.defaultAddress?.company) {
+        const pointer = customer.defaultAddress.company.trim();
+        if (customerCount[pointer]) {
+          customerCount[pointer] = customerCount[pointer] + 1;
+        } else {
+          customerCount[pointer] = 1; // Add unlisted company with count 1
+        }
+      }
+    })
 
-  //   const query = `
-  //     mutation MetafieldsSet($metafields: [MetafieldsSetInput!]!) {
-  //       metafieldsSet(metafields: $metafields) {
-  //         metafields {
-  //           key
-  //           namespace
-  //           value
-  //           createdAt
-  //           updatedAt
-  //         }
-  //         userErrors {
-  //           field
-  //           message
-  //           code
-  //         }
-  //       }
-  //     }
-  //   `;
+    console.log('chek customerCount after:', customerCount);
 
-  //   const variables = {
-  //     "metafields": [
-  //       {
-  //         "key": "company_customer_count",
-  //         "namespace": "pricing",
-  //         "ownerId": this.shopId,
-  //         "type": "json",
-  //         "value": "{\"Prime Tex\":\"Price CP\",\"Kse Suppliers \":\"Price CP\",\"East Coast\":\"Price CP\",\"Bulk Linen Supply \":\"Price CP\",\"Silver Lining\":\"Price CP\",\"suburban bowery of suffern Inc\":\"Price_A\",\"ProSource\":\"Price_A\",\"Liberty Textile CO\":\"Price_F\",\"Pacific Link\":\"Price_F\",\"Manhattan Hosiery Company\":\"Price_A\",\"Oberlander@ksesuppliers\":\"Price_A\",\"New Dawn Supply\":\"Price CP\",\"Trusted Thread LLC,\":\"Price CP\",\"Centra Clean\":\"Price_A\",\"Prestium Suppliers\":\"Price_F\",\"HY Supplies Inc.\":\"Price_A\",\"American Hospitality Supply\":\"Price_F\",\"Trend Supply\":\"Price_B\"}"
-  //       }
-  //     ]
-  //   };
+    const query = `
+      mutation MetafieldsSet($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+          metafields {
+            key
+            namespace
+            value
+            createdAt
+            updatedAt
+          }
+          userErrors {
+            field
+            message
+            code
+          }
+        }
+      }
+    `;
 
-  //   // const response = await axios({
-  //   //   url: this.shopifyApiUrl,
-  //   //   method: 'POST',
-  //   //   headers: {
-  //   //     'Content-Type': 'application/json',
-  //   //     'X-Shopify-Access-Token': this.shopifyAccessToken,
-  //   //   },
-  //   //   data: { query, variables }
-  //   // })
-  // }
+    const variables = {
+      "metafields": [
+        {
+          "key": "company_customer_count",
+          "namespace": "pricing",
+          "ownerId": this.shopId,
+          "type": "json",
+          "value": JSON.stringify(customerCount)
+        }
+      ]
+    };
+
+    return await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: { query, variables }
+    }).then((response) => {
+      return response.data.data.metafieldsSet.metafields;
+    })
+
+    // const response = await axios({
+    //   url: this.shopifyApiUrl,
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //     'X-Shopify-Access-Token': this.shopifyAccessToken,
+    //   },
+    //   data: { query, variables }
+    // })
+  }
+
+  async getCompanyCustomerCount() {
+    return await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: {
+        query: `
+          query {
+            shop {
+              metafield(namespace: "pricing", key: "company_customer_count") {
+                value
+              }
+            }
+          }
+        `,
+      },
+    }).then(response => {
+      return JSON.parse(response.data.data.shop.metafield.value || '{}');
+    })
+  }
 
   /** 
    * PRODUCT SERVICES
