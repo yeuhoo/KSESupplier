@@ -383,6 +383,10 @@ export class AppService {
             null,
         };
       });
+
+      // Update CompanyCustomerCount
+      await this.getCompanyCustomerCount();
+
       return customerCompany;
     } catch (error) {
       console.error('Error editing customer company:', error.message);
