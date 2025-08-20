@@ -270,7 +270,7 @@ export class AppResolver {
     try {
       const metafield = await this.appService.setCompanyPriceLevel(
         company,
-        priceLevel = "",
+        priceLevel,
       );
 
       // Update all users under this company with the new price level
