@@ -2012,7 +2012,7 @@ export class AppService {
       return true;
     } catch (error) {
       console.error("Error sending draft order invoice:", error.message);
-      throw new Error("Failed to send draft order invoice.");
+      throw new Error("Failed to send draft order invoice. " + error.message);
     }
   }
 }
