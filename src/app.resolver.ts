@@ -463,4 +463,11 @@ export class AppResolver {
   ): Promise<DraftOrderTag> {
     return this.appService.updateDraftOrderTag(draftOrderId, tag);
   }
+
+  @Mutation(() => Boolean)
+  async sendDraftOrderInvoice(
+    @Args('draftOrderId') draftOrderId: string
+  ): Promise<boolean> {
+    return this.appService.sendDraftOrderInvoice(draftOrderId);
+  }
 }

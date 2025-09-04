@@ -169,6 +169,7 @@ type Mutation {
   completeDraftOrder(id: String!, email: String!, shippingAddress: ShippingAddressInput!): Boolean!
   createDraftOrderTag(draftOrderId: String!, tag: String!, userId: String!): Boolean!
   updateDraftOrderTag(draftOrderId: String!, tag: String!): DraftOrderTag!
+  sendDraftOrderInvoice(draftOrderId: String!): Boolean!
 }
 
 input ShippingAddressInput {

@@ -1970,4 +1970,49 @@ export class AppService {
       throw new Error('Failed to send shipping request email.');
     }
   }
+
+  async sendDraftOrderInvoice(draftOrderId) {
+    try {
+      const formattedDraftOrderId = draftOrderId.startsWith('gid://shopify/DraftOrder/')
+        ? draftOrderId
+        : `gid://shopify/DraftOrder/${draftOrderId}`;
+
+      const mutation = `
+        mutation {
+          draftOrderInvoiceSend(id: "${formattedDraftOrderId}") {
+            draftOrder {
+              id
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      const response = await axios({
+        url: this.shopifyApiUrl,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": this.shopifyAccessToken,
+        },
+        data: { query: mutation },
+      });
+
+      console.log("Invoice Send Response:", response.data);
+
+      const result = response.data.data.draftOrderInvoiceSend;
+
+      if (result.userErrors.length > 0) {
+        throw new Error(result.userErrors[0].message);
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error sending draft order invoice:", error.message);
+      throw new Error("Failed to send draft order invoice.");
+    }
+  }
 }
