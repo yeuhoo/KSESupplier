@@ -220,7 +220,7 @@ export class AppResolver {
       return true;
     } catch (error) {
       console.error('Error requesting shipping fee:', error);
-      throw new Error('Failed to request shipping fee.');
+      throw new Error('Failed to request shipping fee. ' + error.message);
     }
   }
 
