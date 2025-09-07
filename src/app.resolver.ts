@@ -205,8 +205,7 @@ export class AppResolver {
     @Args('userId') userId: string,
     @Args('draftOrderId') draftOrderId: string,
     @Args('email', { type: () => String }) email: string,
-    @Args('shippingAddress', { type: () => ShippingAddressInput })
-    shippingAddress: ShippingAddressInput,
+    @Args('shippingAddress', { type: () => ShippingAddressInput }) shippingAddress: ShippingAddressInput,
   ): Promise<boolean> {
     try {
       await this.appService.updateDraftOrderAddress(
@@ -215,7 +214,7 @@ export class AppResolver {
         email,
       );
 
-      await this.appService.sendShippingRequestEmail(userId, draftOrderId);
+      // await this.appService.sendShippingRequestEmail(userId, draftOrderId);
 
       return true;
     } catch (error) {
