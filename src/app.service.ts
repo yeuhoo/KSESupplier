@@ -253,8 +253,37 @@ export class AppService {
     return customers;
   }
 
-  // Get shop customer by ID
+  // Get shop customer by ID (DB-first, Shopify fallback)
   async getCustomerById(id: string) {
+    // Normalize to a Shopify GID for DB lookup
+    const gid = id.startsWith('gid://shopify/Customer/')
+      ? id
+      : `gid://shopify/Customer/${id}`;
+
+    try {
+      const row = await this.customerRepo.findByShopifyGid(gid);
+      if (row) {
+        return {
+          id: row.shopifyGid,
+          firstName: row.firstName || 'N/A',
+          lastName: row.lastName || 'N/A',
+          addresses: row.defaultAddress
+            ? [{
+                address1: row.defaultAddress.address1 || null,
+                address2: row.defaultAddress.address2 || null,
+                city: row.defaultAddress.city || null,
+                province: row.defaultAddress.province || null,
+                country: (row.defaultAddress as any).country?.countryName || null,
+                zip: row.defaultAddress.zipCode || null,
+              }]
+            : [],
+        };
+      }
+    } catch (_) {
+      // fallthrough
+    }
+
+    // Fallback to Shopify
     const response = await axios({
       url: this.shopifyApiUrl,
       method: 'POST',
@@ -264,26 +293,27 @@ export class AppService {
       },
       data: {
         query: `
-                {
-                    customer(id: "${id}") {
-                        id
-                        firstName
-                        lastName
-                        addresses {
-                            address1
-                            address2
-                            city
-                            province
-                            country
-                            zip
-                        }
-                    }
-                }
+                { customer(id: "${gid}") { id firstName lastName email tags } }
             `,
       },
     });
 
-    return response.data.data.customer;
+    const customer = response.data.data.customer;
+
+    if (customer) {
+      // Async upsert minimal fields
+      this.customerRepo
+        .upsertFromShopify({
+          id: customer.id,
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          email: customer.email,
+          tags: customer.tags,
+        })
+        .catch(() => undefined);
+    }
+
+    return customer;
   }
 
   // Edit customer company name in default address
