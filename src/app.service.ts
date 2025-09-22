@@ -12,6 +12,7 @@ import { AddressInput } from './dto/address.input';
 import { title } from 'process';
 import { CustomerCompany } from './dto/customer-company.dto';
 import { skip } from 'rxjs';
+import { CustomerRepository } from './repositories/customer.repository';
 
 @Injectable()
 export class AppService {
@@ -21,7 +22,10 @@ export class AppService {
   private readonly tags: DraftOrderTag[] = [];
   private readonly shopId: string = 'gid://shopify/Shop/78220263608';
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly customerRepo: CustomerRepository,
+  ) {
     this.shopifyApiUrl = this.configService.get<string>('SHOPIFY_API_URL');
     this.shopifyAccessToken = this.configService.get<string>(
       'SHOPIFY_ACCESS_TOKEN',
@@ -175,8 +179,35 @@ export class AppService {
     return data.customer;
   }
 
-  // Get all customers of the shop
+  // Get all customers (DB-first, Shopify fallback)
   async getCustomers() {
+    try {
+      const rows = await this.customerRepo.findAll();
+      if (rows.length > 0) {
+        return rows.map((c) => ({
+          id: c.shopifyGid,
+          firstName: c.firstName || 'N/A',
+          lastName: c.lastName || 'N/A',
+          email: c.email || 'N/A',
+          addresses: [],
+          defaultAddress: c.defaultAddress
+            ? {
+                address1: c.defaultAddress.address1 || null,
+                company: (c as any).company?.name || null,
+                city: c.defaultAddress.city || null,
+                province: c.defaultAddress.province || null,
+                country: c.defaultAddress?.country ? (c.defaultAddress as any).country?.countryName : null,
+                zip: c.defaultAddress.zipCode || null,
+              }
+            : null,
+          priceLevel: c.priceLevel || 'N/A',
+        }));
+      }
+    } catch (e) {
+      // fallthrough to Shopify
+    }
+
+    // Fallback to Shopify and upsert minimal fields
     const response = await axios({
       url: this.shopifyApiUrl,
       method: 'POST',
@@ -188,32 +219,7 @@ export class AppService {
         query: `
           {
             customers(first: 100) {
-              edges {
-                node {
-                  id
-                  firstName
-                  lastName
-                  email
-                  addresses {
-                    address1
-                    address2
-                    company
-                    city
-                    province
-                    country
-                    zip
-                  }
-                  defaultAddress {
-                    address1
-                    company
-                    city
-                    province
-                    country
-                    zip
-                  }
-                  tags
-                }
-              }
+              edges { node { id firstName lastName email tags } }
             }
           }
         `,
@@ -225,18 +231,24 @@ export class AppService {
       firstName: edge.node.firstName || 'N/A',
       lastName: edge.node.lastName || 'N/A',
       email: edge.node.email || 'N/A',
-      addresses: edge.node.addresses.map((address) => ({
-        address1: address.address1,
-        address2: address.address2,
-        company: address.company,
-        city: address.city,
-        province: address.province,
-        country: address.country,
-        zip: address.zip,
-      })),
-      defaultAddress: edge.node.defaultAddress,
+      addresses: [],
+      defaultAddress: null,
       priceLevel: edge.node.tags && edge.node.tags[0] ? edge.node.tags[0].trim() : 'N/A',
+      tags: edge.node.tags || [],
     }));
+
+    // Best-effort upsert (non-blocking)
+    Promise.allSettled(
+      customers.map((c) =>
+        this.customerRepo.upsertFromShopify({
+          id: c.id,
+          firstName: c.firstName,
+          lastName: c.lastName,
+          email: c.email,
+          tags: c.tags,
+        }),
+      ),
+    ).catch(() => undefined);
 
     return customers;
   }
