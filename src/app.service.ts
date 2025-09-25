@@ -255,31 +255,46 @@ export class AppService {
 
   // One-time backfill: fetch customers from Shopify and upsert to Postgres
   async backfillCustomers(): Promise<number> {
-    const response = await axios({
-      url: this.shopifyApiUrl,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': this.shopifyAccessToken,
-      },
-      data: {
-        query: `
-          { customers(first: 100) { edges { node { id firstName lastName email tags } } } }
-        `,
-      },
-    });
+    let total = 0;
+    let after: string | null = null;
+    const pageSize = 100;
 
-    const edges = response.data?.data?.customers?.edges || [];
-    const minimal = edges.map((e) => ({
-      id: e.node.id,
-      firstName: e.node.firstName,
-      lastName: e.node.lastName,
-      email: e.node.email,
-      tags: e.node.tags || [],
-    }));
+    const query = `
+      query Customers($first: Int!, $after: String) {
+        customers(first: $first, after: $after) {
+          edges { node { id firstName lastName email tags } }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    `;
 
-    const total = minimal.length;
-    await Promise.allSettled(minimal.map((c) => this.customerRepo.upsertFromShopify(c)));
+    do {
+      const response = await axios({
+        url: this.shopifyApiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+        data: { query, variables: { first: pageSize, after } },
+      });
+
+      const data = response.data?.data?.customers;
+      const edges = data?.edges || [];
+      const minimal = edges.map((e) => ({
+        id: e.node.id,
+        firstName: e.node.firstName,
+        lastName: e.node.lastName,
+        email: e.node.email,
+        tags: e.node.tags || [],
+      }));
+
+      await Promise.allSettled(minimal.map((c) => this.customerRepo.upsertFromShopify(c)));
+
+      total += minimal.length;
+      after = data?.pageInfo?.hasNextPage ? data?.pageInfo?.endCursor : null;
+    } while (after);
+
     return total;
   }
 
