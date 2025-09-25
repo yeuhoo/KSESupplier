@@ -278,16 +278,9 @@ export class AppService {
       tags: e.node.tags || [],
     }));
 
-    let success = 0;
-    for (const c of minimal) {
-      try {
-        await this.customerRepo.upsertFromShopify(c);
-        success += 1;
-      } catch (_) {
-        // ignore and continue
-      }
-    }
-    return success;
+    const total = minimal.length;
+    await Promise.allSettled(minimal.map((c) => this.customerRepo.upsertFromShopify(c)));
+    return total;
   }
 
   // Get shop customer by ID (DB-first, Shopify fallback)
