@@ -157,6 +157,7 @@ scalar JSONObject
 
 type Mutation {
   updateDraftOrderNote(draftOrderId: String!, jobCode: String!): Boolean!
+  backfillCustomers: Int!
   requestShippingFee(userId: String!, draftOrderId: String!, email: String!, shippingAddress: ShippingAddressInput!): Boolean!
   createUser(firstName: String!, lastName: String!, addresses: [AddressInput!]!, email: String): User!
   deleteCompany(company: String!): Metafield!

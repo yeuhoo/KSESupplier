@@ -13,6 +13,7 @@ import { DraftOrderTag } from './dto/draft-order-tag.model';
 import { CustomerCompany } from './dto/customer-company.dto';
 import { AddressInput } from './dto/address.input';
 import { GraphQLJSONObject } from 'graphql-type-json';
+import { Int } from '@nestjs/graphql';
 
 @Resolver()
 export class AppResolver {
@@ -198,6 +199,12 @@ export class AppResolver {
     @Args('jobCode') jobCode: string,
   ): Promise<boolean> {
     return this.appService.updateDraftOrderNote(draftOrderId, jobCode);
+  }
+
+  // One-time backfill customers into Postgres
+  @Mutation(() => Int)
+  async backfillCustomers(): Promise<number> {
+    return this.appService.backfillCustomers();
   }
 
   @Mutation(() => Boolean)

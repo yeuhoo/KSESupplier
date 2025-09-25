@@ -253,9 +253,45 @@ export class AppService {
     return customers;
   }
 
+  // One-time backfill: fetch customers from Shopify and upsert to Postgres
+  async backfillCustomers(): Promise<number> {
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: {
+        query: `
+          { customers(first: 100) { edges { node { id firstName lastName email tags } } } }
+        `,
+      },
+    });
+
+    const edges = response.data?.data?.customers?.edges || [];
+    const minimal = edges.map((e) => ({
+      id: e.node.id,
+      firstName: e.node.firstName,
+      lastName: e.node.lastName,
+      email: e.node.email,
+      tags: e.node.tags || [],
+    }));
+
+    let success = 0;
+    for (const c of minimal) {
+      try {
+        await this.customerRepo.upsertFromShopify(c);
+        success += 1;
+      } catch (_) {
+        // ignore and continue
+      }
+    }
+    return success;
+  }
+
   // Get shop customer by ID (DB-first, Shopify fallback)
   async getCustomerById(id: string) {
-    // Normalize to a Shopify GID for DB lookup
     const gid = id.startsWith('gid://shopify/Customer/')
       ? id
       : `gid://shopify/Customer/${id}`;
@@ -2057,4 +2093,4 @@ export class AppService {
       throw new Error("Failed to send draft order invoice. 1" + error.message);
     }
   }
-}
+} 

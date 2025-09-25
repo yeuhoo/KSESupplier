@@ -19,18 +19,21 @@ export class CustomerRepository {
     }
 
     async upsertFromShopify(shopifyCustomer: any): Promise<Customer> {
-        const entity = this.repo.create({
+        const payload: Partial<Customer> = {
             shopifyGid: shopifyCustomer.id,
             firstName: shopifyCustomer.firstName || null,
             lastName: shopifyCustomer.lastName || null,
             email: shopifyCustomer.email || null,
-            priceLevel: Array.isArray(shopifyCustomer.tags) && shopifyCustomer.tags[0]
-                ? String(shopifyCustomer.tags[0]).trim()
-                : null,
+            priceLevel:
+                Array.isArray(shopifyCustomer.tags) && shopifyCustomer.tags[0]
+                    ? String(shopifyCustomer.tags[0]).trim()
+                    : null,
             tags: shopifyCustomer.tags || [],
             lastSyncedAt: new Date(),
-        });
-        return this.repo.save(entity);
+        } as any;
+
+        await this.repo.upsert(payload, { conflictPaths: ['shopifyGid'] as any });
+        return this.findByShopifyGid(String(shopifyCustomer.id)) as Promise<Customer>;
     }
 }
 
