@@ -13,6 +13,7 @@ import { title } from 'process';
 import { CustomerCompany } from './dto/customer-company.dto';
 import { skip } from 'rxjs';
 import { CustomerRepository } from './repositories/customer.repository';
+import { DraftOrderRepository } from './repositories/draft-order.repository';
 
 @Injectable()
 export class AppService {
@@ -25,6 +26,7 @@ export class AppService {
   constructor(
     private readonly configService: ConfigService,
     private readonly customerRepo: CustomerRepository,
+    private readonly draftOrderRepo: DraftOrderRepository,
   ) {
     this.shopifyApiUrl = this.configService.get<string>('SHOPIFY_API_URL');
     this.shopifyAccessToken = this.configService.get<string>(
@@ -292,6 +294,59 @@ export class AppService {
       await Promise.allSettled(minimal.map((c) => this.customerRepo.upsertFromShopify(c)));
 
       total += minimal.length;
+      after = data?.pageInfo?.hasNextPage ? data?.pageInfo?.endCursor : null;
+    } while (after);
+
+    return total;
+  }
+
+  // One-time backfill for draft orders (paginated)
+  async backfillDraftOrders(): Promise<number> {
+    let total = 0;
+    let after: string | null = null;
+    const pageSize = 50; // draftOrders can be heavier
+
+    const query = `
+      query DraftOrders($first: Int!, $after: String) {
+        draftOrders(first: $first, after: $after) {
+          edges {
+            node {
+              id
+              name
+              invoiceUrl
+              createdAt
+              completedAt
+              status
+              lineItems(first: 25) {
+                edges { node { title quantity appliedDiscount { value valueType } variant { title price } } }
+              }
+            }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    `;
+
+    do {
+      const response = await axios({
+        url: this.shopifyApiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+        data: { query, variables: { first: pageSize, after } },
+      });
+
+      const data = response.data?.data?.draftOrders;
+      const edges = data?.edges || [];
+      for (const e of edges) {
+        try {
+          await this.draftOrderRepo.upsertFromShopify(e.node);
+        } catch (_) {}
+      }
+
+      total += edges.length;
       after = data?.pageInfo?.hasNextPage ? data?.pageInfo?.endCursor : null;
     } while (after);
 

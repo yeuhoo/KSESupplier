@@ -207,6 +207,12 @@ export class AppResolver {
     return this.appService.backfillCustomers();
   }
 
+  // One-time backfill draft orders
+  @Mutation(() => Int)
+  async backfillDraftOrders(): Promise<number> {
+    return this.appService.backfillDraftOrders();
+  }
+
   @Mutation(() => Boolean)
   async requestShippingFee(
     @Args('userId') userId: string,
