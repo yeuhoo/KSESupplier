@@ -14,6 +14,9 @@ import { CustomerCompany } from './dto/customer-company.dto';
 import { skip } from 'rxjs';
 import { CustomerRepository } from './repositories/customer.repository';
 import { DraftOrderRepository } from './repositories/draft-order.repository';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { DraftOrderTag as DraftOrderTagEntity } from './entities/draft-order-tag.entity';
 
 @Injectable()
 export class AppService {
@@ -27,6 +30,8 @@ export class AppService {
     private readonly configService: ConfigService,
     private readonly customerRepo: CustomerRepository,
     private readonly draftOrderRepo: DraftOrderRepository,
+    @InjectRepository(DraftOrderTagEntity)
+    private readonly draftOrderTagRepo: Repository<DraftOrderTagEntity>,
   ) {
     this.shopifyApiUrl = this.configService.get<string>('SHOPIFY_API_URL');
     this.shopifyAccessToken = this.configService.get<string>(
@@ -1251,97 +1256,81 @@ export class AppService {
 
   // Get all draft orders of a customer
   async getDraftOrderById(id: string): Promise<DraftOrder> {
+    const gid = id.startsWith('gid://shopify/DraftOrder/') ? id : `gid://shopify/DraftOrder/${id}`;
+
+    // DB-first
     try {
-      const formattedId = id.startsWith('gid://shopify/DraftOrder/')
-        ? id
-        : `gid://shopify/DraftOrder/${id}`;
-
-      const response = await axios({
-        url: this.shopifyApiUrl,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': this.shopifyAccessToken,
-        },
-        data: {
-          query: `
-                    query getDraftOrder($id: ID!) {
-                        draftOrder(id: $id) {
-                            id
-                            name
-                            invoiceUrl
-                            createdAt
-                            shippingAddress {
-                                address1
-                                city
-                                province
-                                country
-                                zip
-                            }
-                            lineItems(first: 10) {
-                                edges {
-                                    node {
-                                        title
-                                        quantity
-                                        appliedDiscount {
-                                          value
-                                          valueType
-                                        }
-                                        variant {
-                                            title
-                                            price
-                                            metafields(first: 5) {
-                                                nodes {
-                                                    key
-                                                    value
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                `,
-          variables: { id: formattedId },
-        },
-      });
-
-      const draftOrder = response.data.data.draftOrder;
-
-      if (!draftOrder) {
-        throw new Error(`Draft order with ID ${id} not found.`);
-      }
-
-      return {
-        id: draftOrder.id,
-        name: draftOrder.name ? draftOrder.name : null,
-        invoiceUrl: draftOrder.invoiceUrl ? draftOrder.invoiceUrl : null,
-        createdAt: draftOrder.createdAt,
-        shippingAddress: draftOrder.shippingAddress,
-        lineItems: draftOrder.lineItems.edges.map((edge) => ({
-          title: edge.node.title,
-          quantity: edge.node.quantity,
-          appliedDiscount: edge.node.appliedDiscount
+      const row: any = await this.draftOrderRepo.findByShopifyGid(gid);
+      if (row) {
+        return {
+          id: row.shopifyGid,
+          name: row.name || null,
+          invoiceUrl: row.invoiceUrl || null,
+          createdAt: row.dateCreated?.toISOString?.() || null,
+          shippingAddress: row.shippingAddress
             ? {
-                value: edge.node.appliedDiscount.value,
-                valueType: edge.node.appliedDiscount.valueType,
+                address1: row.shippingAddress.address1 || null,
+                city: row.shippingAddress.city || null,
+                province: row.shippingAddress.province || null,
+                country: (row.shippingAddress as any).country?.countryName || null,
+                zip: row.shippingAddress.zipCode || null,
               }
             : null,
-          variant: {
-            title: edge.node.variant?.title,
-            price: edge.node.variant?.price,
-            metafields: edge.node.variant?.metafields?.nodes || [],
-          },
-        })),
-      };
-    } catch (error) {
-      console.error(
-        'Error fetching draft order:',
-        error.response?.data || error.message,
-      );
-      throw new Error('Failed to fetch draft order.');
+          lineItems: Array.isArray(row.lineItems)
+            ? row.lineItems.map((li: any) => ({
+                title: li.title,
+                quantity: li.quantity,
+                appliedDiscount: li.appliedDiscount || null,
+                variant: li.variant || null,
+              }))
+            : [],
+        } as any;
+      }
+    } catch (_) {}
+
+    // Fallback to Shopify
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: {
+        query: `
+          query getDraftOrder($id: ID!) {
+            draftOrder(id: $id) {
+              id name invoiceUrl createdAt
+              shippingAddress { address1 city province country zip }
+              lineItems(first: 10) { edges { node { title quantity appliedDiscount { value valueType } variant { title price } } } }
+            }
+          }
+        `,
+        variables: { id: gid },
+      },
+    });
+
+    const draftOrder = response.data.data.draftOrder;
+    if (draftOrder) {
+      // upsert minimal in background
+      this.draftOrderRepo.upsertFromShopify(draftOrder).catch(() => undefined);
     }
+
+    return {
+      id: draftOrder.id,
+      name: draftOrder.name || null,
+      invoiceUrl: draftOrder.invoiceUrl || null,
+      createdAt: draftOrder.createdAt,
+      shippingAddress: draftOrder.shippingAddress,
+      lineItems: draftOrder.lineItems.edges.map((edge) => ({
+        title: edge.node.title,
+        quantity: edge.node.quantity,
+        appliedDiscount: edge.node.appliedDiscount
+          ? { value: edge.node.appliedDiscount.value, valueType: edge.node.appliedDiscount.valueType }
+          : null,
+        variant: { title: edge.node.variant?.title, price: edge.node.variant?.price, metafields: [] },
+      })),
+    } as any;
   }
 
   // Get details of a draft order
@@ -1364,53 +1353,51 @@ export class AppService {
                           
   // Get tags of a draft order
   async getDraftOrderTags(draftOrderId: string): Promise<DraftOrderTag[]> {
+    // DB-first
+    const gid = draftOrderId.startsWith('gid://shopify/DraftOrder/') ? draftOrderId : `gid://shopify/DraftOrder/${draftOrderId}`;
     try {
-      // Ensure the draftOrderId has the correct prefix
-      const formattedId = draftOrderId.startsWith('gid://shopify/DraftOrder/')
-        ? draftOrderId // Use as-is if already prefixed
-        : `gid://shopify/DraftOrder/${draftOrderId}`; // Add prefix if missing
+      const order = await this.draftOrderRepo.findByShopifyGid(gid);
+      if (order) {
+        const tags = await this.draftOrderTagRepo.find({ where: { draftOrder: { id: (order as any).id } as any } });
+        if (tags.length > 0) {
+          return tags.map((t) => ({ id: (order as any).id, draftOrderId: gid, tag: t.tag }));
+        }
+      }
+    } catch (_) {}
 
-      // Extract numeric ID for Shopify REST API
-      const cleanDraftOrderId = formattedId.split('/').pop(); // Extract numeric part of the ID
+    // Fallback to Shopify
+    const graphqlQuery = {
+      query: `
+        query getDraftOrder($id: ID!) { draftOrder(id: $id) { id tags } }
+      `,
+      variables: { id: gid },
+    };
+    const response = await axios({
+      url: this.shopifyApiUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.shopifyAccessToken,
+      },
+      data: graphqlQuery,
+    });
 
-      // Construct GraphQL query with cleaned ID
-      const graphqlQuery = {
-        query: `
-              query getDraftOrder($id: ID!) {
-                  draftOrder(id: $id) {
-                      id
-                      tags
-                  }
-              }
-          `,
-        variables: { id: formattedId }, // Pass the formatted ID
-      };
+    const tags = response.data.data.draftOrder?.tags || [];
 
-      // Make the GraphQL API request
-      const response = await axios({
-        url: this.shopifyApiUrl,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': this.shopifyAccessToken,
-        },
-        data: graphqlQuery,
-      });
+    // best-effort persist
+    try {
+      const order = await this.draftOrderRepo.findByShopifyGid(gid);
+      if (order && tags.length > 0) {
+        const existing = await this.draftOrderTagRepo.find({ where: { draftOrder: { id: (order as any).id } as any } });
+        const existingSet = new Set(existing.map((t) => t.tag));
+        const toInsert = tags.filter((t: string) => !existingSet.has(t)).map((t: string) => this.draftOrderTagRepo.create({ draftOrder: order as any, tag: t }));
+        if (toInsert.length > 0) {
+          await this.draftOrderTagRepo.save(toInsert);
+        }
+      }
+    } catch (_) {}
 
-      // Extract tags or return an empty array
-      const tags = response.data.data.draftOrder?.tags || [];
-      return tags.map((tag: string) => ({
-        id: cleanDraftOrderId,
-        draftOrderId: formattedId,
-        tag,
-      }));
-    } catch (error) {
-      console.error(
-        'Error retrieving draft order tags from Shopify:',
-        error.message,
-      );
-      throw new Error('Failed to retrieve draft order tags from Shopify.');
-    }
+    return tags.map((tag: string) => ({ id: draftOrderId, draftOrderId: gid, tag }));
   }
 
   // Update a draft order
