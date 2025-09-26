@@ -17,6 +17,8 @@ import { Country } from './entities/country.entity';
 import { CustomerAddress } from './entities/customer-address.entity';
 import { DraftOrder } from './entities/draft-order.entity';
 import { DraftOrderTag } from './entities/draft-order-tag.entity';
+import { WebhooksController } from './webhooks/webhooks.controller';
+import { WebhooksService } from './webhooks/webhooks.service';
 
 @Module({
     imports: [
@@ -43,6 +45,7 @@ import { DraftOrderTag } from './entities/draft-order-tag.entity';
             playground: false
         }),
     ],
-    providers: [AppService, AppResolver, CustomerRepository, DraftOrderRepository],
+    providers: [AppService, AppResolver, CustomerRepository, DraftOrderRepository, WebhooksService],
+    controllers: [WebhooksController],
 })
 export class AppModule { }

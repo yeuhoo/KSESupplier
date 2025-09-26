@@ -49,6 +49,10 @@ export class DraftOrderRepository {
 
         await this.repo.upsert(payload, { conflictPaths: ['shopifyGid'] as any });
     }
+
+    async deleteByShopifyGid(shopifyGid: string): Promise<void> {
+        await this.repo.delete({ shopifyGid } as any);
+    }
 }
 
 
