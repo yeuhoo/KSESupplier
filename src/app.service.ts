@@ -1178,8 +1178,75 @@ export class AppService {
       }
     } catch (_) {}
 
-    // Fallback to Shopify: reuse existing implementation for now
-    return [];
+    // Fallback to Shopify: fetch, return, and upsert for next calls
+    try {
+      const response = await axios({
+        url: this.shopifyApiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyAccessToken,
+        },
+        data: {
+          query: `
+          query {
+            draftOrders(first: 100) {
+              edges {
+                node {
+                  id
+                  name
+                  createdAt
+                  completedAt
+                  status
+                  invoiceUrl
+                  lineItems(first: 10) {
+                    edges { node { title quantity appliedDiscount { value valueType } variant { title price } } }
+                  }
+                }
+              }
+            }
+          }
+        `,
+        },
+      });
+
+      const edges = response.data?.data?.draftOrders?.edges || [];
+      // best-effort upsert in background
+      Promise.allSettled(edges.map((e: any) => this.draftOrderRepo.upsertFromShopify(e.node))).catch(() => undefined);
+
+      return edges.map((edge: any) => {
+        const order = edge.node;
+        return {
+          id: order.id,
+          name: order.name,
+          createdAt: order.createdAt,
+          customer: null,
+          tags: [],
+          shippingAddress: null,
+          lineItems:
+            order.lineItems?.edges.map((lineItemEdge: any) => ({
+              title: lineItemEdge.node.title,
+              quantity: lineItemEdge.node.quantity,
+              appliedDiscount: lineItemEdge.node.appliedDiscount
+                ? {
+                    value: lineItemEdge.node.appliedDiscount.value,
+                    valueType: lineItemEdge.node.appliedDiscount.valueType,
+                  }
+                : null,
+              variant: lineItemEdge.node.variant
+                ? {
+                    title: lineItemEdge.node.variant.title,
+                    price: lineItemEdge.node.variant.price,
+                    metafields: [],
+                  }
+                : null,
+            })) || [],
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching draft orders from Shopify:', error.message || error);
+      throw new Error('Failed to fetch draft orders.');
+    }
   }
 
   // Get all draft orders of a customer

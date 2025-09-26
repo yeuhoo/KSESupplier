@@ -150,6 +150,12 @@ export class AppResolver {
     return filteredOrders;
   }
 
+  // Draft orders list (DB-first with Shopify fallback)
+  @Query(() => [DraftOrder])
+  async getDraftOrders(): Promise<DraftOrder[]> {
+    return this.appService.getDraftOrders();
+  }
+
   @Query(() => String, { nullable: true }) // Adjust to return a nullable string
   async checkForShippingFee(
     @Args('draftOrderId') draftOrderId: string,
