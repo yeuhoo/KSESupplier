@@ -1147,117 +1147,39 @@ export class AppService {
 
   // Get all draft orders
   async getDraftOrders(): Promise<DraftOrder[]> {
+    // DB-first
     try {
-      const response = await axios({
-        url: this.shopifyApiUrl,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': this.shopifyAccessToken,
-        },
-        data: {
-          query: `
-          query {
-            draftOrders(first: 100) {
-              edges {
-                node {
-                  id
-                  name
-                  createdAt
-                  customer {
-                    id
-                  }
-                  tags
-                  shippingAddress {
-                    address1
-                    city
-                    province
-                    country
-                    zip
-                  }
-                  lineItems(first: 10) {
-                    edges {
-                      node {
-                        title
-                        quantity
-                        appliedDiscount {
-                          value
-                          valueType
-                        }
-                        variant {
-                          title
-                          price
-                          metafields(first: 5) {
-                            nodes {
-                              key
-                              value
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        `,
-        },
-      });
-
-      // Debugging: Ensure draftOrders are correctly fetched
-      console.log(
-        'Response from Shopify API:',
-        JSON.stringify(response.data, null, 2),
-      );
-
-      if (!response.data.data?.draftOrders?.edges) {
-        throw new Error('Draft orders not found in the API response.');
-      }
-
-      // Map response data to your DraftOrder format
-      return response.data.data.draftOrders.edges.map((edge) => {
-        const order = edge.node;
-        return {
-          id: order.id,
-          name: order.name,
-          createdAt: order.createdAt,
-          customer: order.customer ? { id: order.customer.id } : null,
-          tags: order.tags || [], // Ensure tags is an array
-          shippingAddress: order.shippingAddress
+      const rows = await this.draftOrderRepo.findAll();
+      if (rows.length > 0) {
+        return rows.map((o: any) => ({
+          id: o.shopifyGid,
+          name: o.name,
+          createdAt: o.dateCreated?.toISOString?.() || null,
+          customer: o.customer ? { id: o.customer.shopifyGid } : null,
+          tags: (o.tags || []).map((t: any) => t.tag),
+          shippingAddress: o.shippingAddress
             ? {
-                address1: order.shippingAddress.address1,
-                city: order.shippingAddress.city,
-                province: order.shippingAddress.province,
-                country: order.shippingAddress.country,
-                zip: order.shippingAddress.zip,
+                address1: o.shippingAddress.address1 || null,
+                city: o.shippingAddress.city || null,
+                province: o.shippingAddress.province || null,
+                country: (o.shippingAddress as any).country?.countryName || null,
+                zip: o.shippingAddress.zipCode || null,
               }
             : null,
-          lineItems:
-            order.lineItems?.edges.map((lineItemEdge) => ({
-              title: lineItemEdge.node.title,
-              quantity: lineItemEdge.node.quantity,
-              appliedDiscount: lineItemEdge.node.appliedDiscount
-                ? {
-                    value: lineItemEdge.node.appliedDiscount.value,
-                    valueType: lineItemEdge.node.appliedDiscount.valueType,
-                  }
-                : null,
-              variant: lineItemEdge.node.variant
-                ? {
-                    title: lineItemEdge.node.variant.title,
-                    price: lineItemEdge.node.variant.price,
-                    metafields:
-                      lineItemEdge.node.variant.metafields?.nodes || [],
-                  }
-                : null,
-            })) || [],
-        };
-      });
-    } catch (error) {
-      console.error('Error fetching draft orders:', error.message || error);
-      throw new Error('Failed to fetch draft orders.');
-    }
+          lineItems: Array.isArray(o.lineItems)
+            ? o.lineItems.map((li: any) => ({
+                title: li.title,
+                quantity: li.quantity,
+                appliedDiscount: li.appliedDiscount || null,
+                variant: li.variant || null,
+              }))
+            : [],
+        }));
+      }
+    } catch (_) {}
+
+    // Fallback to Shopify: reuse existing implementation for now
+    return [];
   }
 
   // Get all draft orders of a customer

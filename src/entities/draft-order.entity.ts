@@ -1,6 +1,7 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Customer } from './customer.entity';
 import { Address } from './address.entity';
+import { DraftOrderTag } from './draft-order-tag.entity';
 
 @Entity('draft_orders')
 @Index(['shopifyGid'], { unique: true })
@@ -66,6 +67,9 @@ export class DraftOrder {
 
     @Column({ type: 'timestamptz', nullable: true })
     lastSyncedAt?: Date | null;
+
+    @OneToMany(() => DraftOrderTag, (t) => t.draftOrder, { cascade: true })
+    tags?: DraftOrderTag[];
 }
 
 
